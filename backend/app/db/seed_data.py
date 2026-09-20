@@ -32,7 +32,7 @@ SEED_BOREHOLES: List[BoreholeRecord] = [
         ),
         totalDrilledDepthMeters=198.50,
         targetSeamThickness=8.42,
-        coalGrade="G4",
+        coalGrade="G7",
         proximateAssay=ProximateAssay(
             ashPercent=23.4,
             moisturePercent=6.8,
@@ -125,7 +125,7 @@ SEED_BOREHOLES: List[BoreholeRecord] = [
         ),
         totalDrilledDepthMeters=182.00,
         targetSeamThickness=7.95,
-        coalGrade="G4",
+        coalGrade="G7",
         proximateAssay=ProximateAssay(
             ashPercent=24.1,
             moisturePercent=6.5,
@@ -160,7 +160,7 @@ SEED_BOREHOLES: List[BoreholeRecord] = [
         ),
         totalDrilledDepthMeters=190.50,
         targetSeamThickness=8.10,
-        coalGrade="G4",
+        coalGrade="G7",
         proximateAssay=ProximateAssay(
             ashPercent=23.8,
             moisturePercent=6.9,
@@ -184,7 +184,7 @@ SEED_BOREHOLES: List[BoreholeRecord] = [
         ),
         totalDrilledDepthMeters=205.00,
         targetSeamThickness=8.65,
-        coalGrade="G5",
+        coalGrade="G7",
         proximateAssay=ProximateAssay(
             ashPercent=25.2,
             moisturePercent=7.1,
@@ -208,13 +208,13 @@ SEED_BOREHOLES: List[BoreholeRecord] = [
         ),
         totalDrilledDepthMeters=212.00,
         targetSeamThickness=8.80,
-        coalGrade="G5",
+        coalGrade="G7",
         proximateAssay=ProximateAssay(
             ashPercent=26.0,
             moisturePercent=7.0,
             volatileMatterPercent=27.5,
             fixedCarbonPercent=39.5,
-            grossCalorificValueKcal=5190.0
+            grossCalorificValueKcal=5220.0
         ),
         statutoryClearance="UNDER_JOINT_REVIEW",
         intervals=[],

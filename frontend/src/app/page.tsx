@@ -25,7 +25,7 @@ const INITIAL_BOREHOLES: BoreholeRecord[] = [
     },
     totalDrilledDepthMeters: 198.50,
     targetSeamThickness: 8.42,
-    coalGrade: "G4",
+    coalGrade: "G7",
     proximateAssay: {
       ashPercent: 23.4,
       moisturePercent: 6.8,
@@ -93,7 +93,7 @@ const INITIAL_BOREHOLES: BoreholeRecord[] = [
     },
     totalDrilledDepthMeters: 182.00,
     targetSeamThickness: 7.95,
-    coalGrade: "G4",
+    coalGrade: "G7",
     proximateAssay: {
       ashPercent: 24.1,
       moisturePercent: 6.5,
@@ -115,7 +115,7 @@ const INITIAL_BOREHOLES: BoreholeRecord[] = [
     },
     totalDrilledDepthMeters: 190.50,
     targetSeamThickness: 8.10,
-    coalGrade: "G4",
+    coalGrade: "G7",
     proximateAssay: {
       ashPercent: 23.8,
       moisturePercent: 6.9,
@@ -137,7 +137,7 @@ const INITIAL_BOREHOLES: BoreholeRecord[] = [
     },
     totalDrilledDepthMeters: 205.00,
     targetSeamThickness: 8.65,
-    coalGrade: "G5",
+    coalGrade: "G7",
     proximateAssay: {
       ashPercent: 25.2,
       moisturePercent: 7.1,

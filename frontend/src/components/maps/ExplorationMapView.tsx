@@ -257,7 +257,7 @@ export const ExplorationMapView: React.FC<ExplorationMapViewProps> = ({
             {/* Layer 3: Target Coal Seam IX (114 - 122m) */}
             <path d="M 50 135 Q 250 133, 450 140 T 750 135 L 750 158 Q 450 162, 250 156 T 50 158 Z" fill="#0f172a" />
             <text x="280" y="150" fontSize="12" fill="#f8fafc" fontWeight="bold">
-              ★ Target Coal Seam IX — Verified Thickness: 8.42m (Grade G4)
+              ★ Target Coal Seam IX — Verified Thickness: 8.42m (Grade G7)
             </text>
 
             {/* Layer 4: Interburden (122 - 154m) */}
@@ -266,7 +266,7 @@ export const ExplorationMapView: React.FC<ExplorationMapViewProps> = ({
 
             {/* Layer 5: Coal Seam X (154 - 160m) */}
             <path d="M 50 195 Q 250 192, 450 198 T 750 195 L 750 215 Q 450 218, 250 212 T 50 215 Z" fill="#1e293b" />
-            <text x="330" y="208" fontSize="11" fill="#f1f5f9" fontWeight="bold">Coal Seam X Lower Horizon (6.25m, G5)</text>
+            <text x="330" y="208" fontSize="11" fill="#f1f5f9" fontWeight="bold">Coal Seam X Lower Horizon (6.25m, G7)</text>
 
             {/* Borehole Vertical Traverse Columns */}
             <line x1="200" y1="36" x2="200" y2="225" stroke="#0c2340" strokeWidth="2" strokeDasharray="3,3" />

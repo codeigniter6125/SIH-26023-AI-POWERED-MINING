@@ -186,7 +186,7 @@ export interface BoreholeRecord {
 
 ### 6.2 Borehole Lithological Dossier & Proximate Analysis Deck
 - **Precise Lithological Column:** Tabular breakdown built with **TanStack Table** displaying From/To depths, seam thickness, lithology classification, and core recovery percentages.
-- **Proximate Quality Assay:** Highlighting Ash %, Moisture %, Gross Calorific Value (5,420 kcal/kg), and Grade designation (Grade G4 Non-Coking).
+- **Proximate Quality Assay:** Highlighting Ash %, Moisture %, Gross Calorific Value (5,420 kcal/kg), and Grade designation (Grade G7 Non-Coking).
 - **Core Recovery & Field Site Evidence:** Direct image scans of physical core storage boxes (Run 114.2m – 122.6m) and on-site drilling rig operations for physical audit trails.
 
 ### 6.3 Statutory Discrepancy & Joint Committee Reconciliation Flow
@@ -211,7 +211,7 @@ export interface BoreholeRecord {
 | **GIGW 3.0 Standard** | Official national emblems, bilingual support, standard footer disclaimers | Ashoka Lion crest, Ministry of Coal logo, Hindi/English language toggle, GIGW compliance badge |
 | **NIC Accessibility (WCAG 2.1 AA)** | High text contrast, text-resize controls, screen reader friendly | Top bar `A- A A+` dynamic scaling, ARIA landmarks on all tabular data and form inputs |
 | **DGMS Safety Compliance** | CMR 2017 Regulation 113 statutory exploration certification | Prominent DGMS cleared badge (`SEC-IV/2025/OK`) and instant export dockets |
-| **UNFC 111 Standards** | UNFC classification framework for coal reserves categorization | Clear badge: *UNFC 111 Proved Reserves (14.80 Million Tonnes)* with Grade G4/G5 breakdown |
+| **UNFC 111 Standards** | UNFC classification framework for coal reserves categorization | Clear badge: *UNFC 111 Proved Reserves (14.80 Million Tonnes)* with Grade G7 breakdown |
 | **Data Provenance & Cryptography** | Digital verification and audit tamper-proofing | Cryptographic SHA-256 digital signature hashes attached to all technical audit notes |
 
 ---

@@ -97,7 +97,7 @@ class CoreGeologicalAgent:
                 "min": min(values),
                 "max": max(values),
                 "count": len(values),
-                "trend": f"Gross Calorific Value averages {mean_val} kcal/kg, predominantly classifying in Indian Standard Grade G4 and G5 bands."
+                "trend": f"Gross Calorific Value averages {mean_val} kcal/kg, predominantly classifying in Indian Standard Grade G7 band (5201–5500 kcal/kg)."
             }
 
         return {}
@@ -229,7 +229,7 @@ class CoreGeologicalAgent:
         # 3. PARLIAMENTARY QUESTION (PQ) FAST-RESPONSE
         # ---------------------------------------------------------------------
         elif task_type == "PQ_FAST_RESPONSE":
-            snippet = "Block IV Proved Geological Reserves certified at 14.80 MT under UNFC 111 (Seam IX, Grade G4)."
+            snippet = "Block IV Proved Geological Reserves certified at 14.80 MT under UNFC 111 (Seam IX, Grade G7)."
             cit_hash = generate_citation_hash("MOC-PQ-412", "Parliamentary Reply Dossier", 1, snippet)
             return {
                 "status": "success",
@@ -238,14 +238,14 @@ class CoreGeologicalAgent:
                     "coalfield": "North Karanpura",
                     "block": "Block IV",
                     "certifiedReservesMT": 14.80,
-                    "coalGrade": "G4",
+                    "coalGrade": "G7",
                     "dgmsStatus": "DGMS_CLEARED"
                 },
                 "narrative": (
                     "PARLIAMENTARY QUESTION REPLY BRIEF:\n"
                     "1. CERTIFIED RESERVES: In-situ coal reserves in North Karanpura Block IV stand certified at 14.80 Million Tonnes (MT) "
                     "under UNFC 111 Proved Category.\n"
-                    "2. QUALITY: Workable Seam IX classifies as Grade G4 Non-Coking (GCV 5,420 kcal/kg, Ash 23.4%).\n"
+                    "2. QUALITY: Workable Seam IX classifies as Grade G7 Non-Coking (GCV 5,420 kcal/kg, Ash 23.4%).\n"
                     "3. SAFETY: Fully compliant with DGMS CMR 2017 Regulation 113 safety boundaries."
                 ),
                 "citations": [
@@ -301,7 +301,7 @@ class CoreGeologicalAgent:
         # A. Live Gemini AI Generation (if API key is configured)
         corpus_summary = (
             f"Available Boreholes: {len(SEED_BOREHOLES)} in North Karanpura Block IV (Tandwa). "
-            "Seams: Seam IX (mean 8.42m, Grade G4), Seam X (6.25m, Grade G5). "
+            "Seams: Seam IX (mean 8.42m, Grade G7), Seam X (6.25m, Grade G7). "
             "Proved reserves: 14.80 MT (UNFC 111). All conform to DGMS CMR 2017 Reg 113."
         )
         gemini_response = self._try_gemini_generation(query, corpus_summary)

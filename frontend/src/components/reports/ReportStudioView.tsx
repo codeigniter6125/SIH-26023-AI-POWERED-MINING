@@ -57,7 +57,7 @@ export const ReportStudioView: React.FC = () => {
           executiveSummary: (
             "QUESTION REF: Lok Sabha Starred Question No. 412 regarding North Karanpura Block IV Coal Reserves.\n\n" +
             "1. INVENTORY SUMMARY: Total in-situ geological coal reserves in Block IV stand certified at 14.80 Million Tonnes (MT) under UNFC 111 Proved Category.\n" +
-            "2. SEAM IX INTERCEPTION: Target Seam IX has been conclusively intercepted across 14 boreholes with a verified mean thickness of 8.42 meters (Grade G4, Gross Calorific Value 5,420 kcal/kg, Ash 23.4%).\n" +
+            "2. SEAM IX INTERCEPTION: Target Seam IX has been conclusively intercepted across 14 boreholes with a verified mean thickness of 8.42 meters (Grade G7, Gross Calorific Value 5,420 kcal/kg, Ash 23.4%).\n" +
             "3. HISTORICAL DISCREPANCY RECONCILIATION: The historical 1998 MECL estimate (6.80m) has been reconciled with 2021 CMPDI digital wireline caliper logs, confirming an additional 1.62m thickness (+5.44 MT) previously missed due to core washout.\n" +
             "4. STATUTORY STATUS: All boreholes conform to DGMS CMR 2017 Regulation 113 safety clearance boundaries."
           ),
@@ -65,7 +65,7 @@ export const ReportStudioView: React.FC = () => {
             { parameter: "Block Name", value: `${coalfield} — ${block}` },
             { parameter: "Target Seam", value: "Seam IX (Barakar Formation)" },
             { parameter: "Certified Thickness", value: "8.42 meters (Mean)" },
-            { parameter: "Coal Grade", value: "Grade G4 Non-Coking (GCV 5,420 kcal/kg)" },
+            { parameter: "Coal Grade", value: "Grade G7 Non-Coking (GCV 5,420 kcal/kg)" },
             { parameter: "Proved Reserves (UNFC 111)", value: "14.80 Million Tonnes" },
             { parameter: "Historical Variance (MECL vs CMPDI)", value: "+1.62m (+23.8% reserve upside)" },
             { parameter: "Statutory Clearance", value: "DGMS CMR 2017 Reg. 113 Certified (SEC-IV/2025/OK)" }
@@ -79,7 +79,7 @@ export const ReportStudioView: React.FC = () => {
               boundingBox: { x: 140.0, y: 382.0, width: 320.0, height: 28.0, pageNumber: 12 },
               sha256Hash: "9f83c1b894101e4a32e18502f9c45a7d6e1b38a716bf6718d098e7235a90e311",
               extractionConfidence: 0.984,
-              snippetText: "Seam IX confirmed at 8.42m thickness with GCV 5,420 kcal/kg (Grade G4)."
+              snippetText: "Seam IX confirmed at 8.42m thickness with GCV 5,420 kcal/kg (Grade G7)."
             },
             {
               documentId: "MECL-EXP-1998-NK",

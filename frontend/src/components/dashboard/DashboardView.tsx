@@ -40,7 +40,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       } else {
         // Fallback demo response if backend is not currently running
         setQueryResponse({
-          answer: `Certified Proved Reserves for North Karanpura Block IV stand at 14.80 Million Tonnes (UNFC 111). Seam IX thickness is verified at 8.42m (Grade G4) following 2021 sonic wireline logging.`,
+          answer: `Certified Proved Reserves for North Karanpura Block IV stand at 14.80 Million Tonnes (UNFC 111). Seam IX thickness is verified at 8.42m (Grade G7) following 2021 sonic wireline logging.`,
           confidenceScore: 0.984,
           routingPath: "RouterAgent -> MiningCalculationEngine -> ValidationAgent",
           validated: true,
@@ -53,7 +53,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       }
     } catch {
       setQueryResponse({
-        answer: `Certified Proved Reserves for North Karanpura Block IV stand at 14.80 Million Tonnes (UNFC 111). Seam IX thickness is verified at 8.42m (Grade G4) following 2021 sonic wireline logging.`,
+        answer: `Certified Proved Reserves for North Karanpura Block IV stand at 14.80 Million Tonnes (UNFC 111). Seam IX thickness is verified at 8.42m (Grade G7) following 2021 sonic wireline logging.`,
         confidenceScore: 0.984,
         routingPath: "RouterAgent -> MiningCalculationEngine -> ValidationAgent",
         validated: true,
@@ -100,7 +100,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
           <div className="text-3xl font-extrabold text-[#137333] mt-2">412.6 <span className="text-lg font-semibold">MT</span></div>
           <div className="flex items-center text-xs text-slate-500 mt-2">
-            <span>Grade G4/G5 Non-Coking</span>
+            <span>Grade G7 Non-Coking</span>
             <span className="mx-1.5">•</span>
             <span className="text-emerald-700 font-semibold">100% Certified</span>
           </div>

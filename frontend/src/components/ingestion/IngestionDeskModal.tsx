@@ -51,7 +51,7 @@ export const IngestionDeskModal: React.FC<IngestionDeskModalProps> = ({
       from: "114.28",
       to: "122.70",
       thickness: "8.42",
-      stratum: "★ Target Coal Seam IX (Grade G4)",
+      stratum: "★ Target Coal Seam IX (Grade G7)",
       recovery: "96.8%",
       bbox: { x: 15, y: 58, w: 70, h: 12 },
     },

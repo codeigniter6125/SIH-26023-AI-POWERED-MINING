@@ -81,7 +81,7 @@ class MiningCalculator:
         ]
 
         for lower, upper, grade, band_desc in bands:
-            if lower < gcv_kcal_kg <= upper or (lower == 7000 and gcv_kcal_kg > 7000):
+            if lower < gcv_kcal_kg <= upper:
                 return grade, f"{band_desc} kcal/kg"
 
         return "Ungraded", "< 2200 kcal/kg"

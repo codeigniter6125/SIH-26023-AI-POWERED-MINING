@@ -19,7 +19,7 @@ def test_seed_data_integrity():
     assert len(SEED_BOREHOLES) >= 4, "Should have at least 4 seeded boreholes"
     nk94 = next(b for b in SEED_BOREHOLES if b.boreholeId == "BH-NK-094")
     assert nk94.targetSeamThickness == 8.42, "Seam IX verified thickness must be 8.42m"
-    assert nk94.coalGrade == "G4", "Grade must be G4"
+    assert nk94.coalGrade == "G7", "Grade must be G7 for GCV 5420 kcal/kg"
     print("[PASS] Seed data integrity verified.")
 
 def test_discrepancy_arithmetic():
