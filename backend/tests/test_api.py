@@ -65,9 +65,49 @@ def test_borehole_table_parser():
     assert any("Domain validation violation" in w for w in parser.last_warnings), "Warning must be recorded for swapped depths"
     print("[PASS] Borehole table parser domain validation & bbox verified.")
 
+def test_query_orchestrator_citations_and_policy():
+    """Verify spontaneous queries return citations and 64-char SHA256 hashes without canned override."""
+    from agents.orchestrator import MultiAgentOrchestrator
+    orchestrator = MultiAgentOrchestrator()
+
+    # Test 1: Spontaneous policy question (not the specific BH-NK-094 canned text)
+    policy_query = "What is the discrepancy policy for flagged boreholes in general?"
+    res_policy = orchestrator.handle_query(policy_query)
+    assert res_policy["routing_decision"]["intent"] == "DISCREPANCY_ANALYSIS"
+    assert "CMPDI Discrepancy & Reconciliation Policy" in res_policy["final_answer"]
+    assert len(res_policy["citations"]) >= 1, "Must return citations for policy inquiry"
+    for cit in res_policy["citations"]:
+        h = cit.get("sha256Hash", "")
+        assert len(h) == 64, f"SHA-256 hash must be exactly 64 hex chars, got {len(h)} ({h})"
+    print("[PASS] Spontaneous policy query answered with authentic 64-char citations.")
+
+    # Test 2: General unscripted inquiry
+    general_query = "What are the latest exploration statistics for CIL subsidiaries?"
+    res_gen = orchestrator.handle_query(general_query)
+    assert len(res_gen["citations"]) >= 1, "General unscripted queries must return grounded citations"
+    for cit in res_gen["citations"]:
+        h = cit.get("sha256Hash", "")
+        assert len(h) == 64, f"SHA-256 hash must be 64 chars, got {len(h)}"
+    print("[PASS] General unscripted query returned grounded citations.")
+
+def test_borehole_pagination():
+    """Verify borehole pagination query parameters."""
+    import asyncio
+    from app.api.v1.endpoints.boreholes import list_boreholes
+    
+    # Test skip and limit
+    page_1 = asyncio.run(list_boreholes(skip=0, limit=2))
+    assert len(page_1) == 2, f"Expected 2 records, got {len(page_1)}"
+    page_2 = asyncio.run(list_boreholes(skip=2, limit=2))
+    assert len(page_2) == 2, f"Expected 2 records, got {len(page_2)}"
+    assert page_1[0].boreholeId != page_2[0].boreholeId, "Pages must not overlap"
+    print("[PASS] Borehole pagination verified.")
+
 if __name__ == "__main__":
     test_seed_data_integrity()
     test_discrepancy_arithmetic()
     test_mining_calculators()
     test_borehole_table_parser()
+    test_query_orchestrator_citations_and_policy()
+    test_borehole_pagination()
     print("All backend tests passed successfully!")

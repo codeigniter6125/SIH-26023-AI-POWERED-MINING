@@ -7,6 +7,7 @@ from app.models.schemas import (
     FactEvidenceCitation,
     BoundingBox
 )
+from app.core.crypto import generate_sha256, generate_citation_hash
 
 router = APIRouter()
 
@@ -86,6 +87,9 @@ async def generate_report(req: ReportGenerationRequest):
     # Execution time mock (0.42 seconds for fast live demo feeling)
     elapsed = round(max(0.42, time.time() - start_time), 2)
 
+    cit_1_snippet = "Seam IX confirmed at 8.42m thickness with GCV 5,420 kcal/kg (Grade G4)."
+    cit_2_snippet = "Borehole BH-NK-094 logged at 6.80m under rotary drilling."
+
     citations = [
         FactEvidenceCitation(
             documentId="CMPDI-GR-2021-NK4",
@@ -93,9 +97,9 @@ async def generate_report(req: ReportGenerationRequest):
             agency="CMPDI",
             year=2021,
             boundingBox=BoundingBox(x=140.0, y=382.0, width=320.0, height=28.0, pageNumber=12),
-            sha256Hash="9f83c1b894101e4a32e18502f9c45a7d6e1b38a716bf6718d098e7235a90e311",
+            sha256Hash=generate_citation_hash("CMPDI-GR-2021-NK4", "CMPDI Block IV Report", 12, cit_1_snippet),
             extractionConfidence=0.984,
-            snippetText="Seam IX confirmed at 8.42m thickness with GCV 5,420 kcal/kg (Grade G4)."
+            snippetText=cit_1_snippet
         ),
         FactEvidenceCitation(
             documentId="MECL-EXP-1998-NK",
@@ -103,14 +107,18 @@ async def generate_report(req: ReportGenerationRequest):
             agency="MECL",
             year=1998,
             boundingBox=BoundingBox(x=115.0, y=510.0, width=310.0, height=24.0, pageNumber=84),
-            sha256Hash="4e712a8910e1b38f8219c0258d4a9823e5a7b21908d2459a11ef932bca5012d9",
+            sha256Hash=generate_citation_hash("MECL-EXP-1998-NK", "MECL Memoir", 84, cit_2_snippet),
             extractionConfidence=0.912,
-            snippetText="Borehole BH-NK-094 logged at 6.80m under rotary drilling."
+            snippetText=cit_2_snippet
         )
     ]
 
+    report_id = f"REP-{int(time.time())}"
+    docket_no = "CMPDI/RI-II/NK-IV/PQ-412/2026"
+    doc_signature = generate_sha256(f"{report_id}:{title}:{docket_no}:{summary}")
+
     return GeneratedReportResponse(
-        reportId=f"REP-{int(time.time())}",
+        reportId=report_id,
         title=title,
         mode=req.mode,
         generatedAt=datetime.now().strftime("%d-%b-%Y %H:%M:%S IST"),
@@ -121,6 +129,6 @@ async def generate_report(req: ReportGenerationRequest):
         findingsTable=findings,
         citations=citations,
         statutoryClearanceStatus="DGMS_CLEARED",
-        dgmsDocketNo="CMPDI/RI-II/NK-IV/PQ-412/2026",
-        digitalSignatureHash="4a812b189c91024e129ab09214b7189a023814ef9012d89a712bc90214a78129"
+        dgmsDocketNo=docket_no,
+        digitalSignatureHash=doc_signature
     )
