@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     
     # CORS
+    FRONTEND_ORIGIN: str = "http://localhost:3000"
     BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     # Database & Storage

@@ -10,10 +10,14 @@ app = FastAPI(
     version="2.1.0"
 )
 
-# Set all CORS enabled origins
+# Configure allowed origins explicitly (CORS spec disallows "*" with allow_credentials=True)
+allowed_origins = list(settings.BACKEND_CORS_ORIGINS)
+if settings.FRONTEND_ORIGIN not in allowed_origins:
+    allowed_origins.append(settings.FRONTEND_ORIGIN)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Open for development across ports
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,4 +51,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
