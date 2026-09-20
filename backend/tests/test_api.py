@@ -103,6 +103,73 @@ def test_borehole_pagination():
     assert page_1[0].boreholeId != page_2[0].boreholeId, "Pages must not overlap"
     print("[PASS] Borehole pagination verified.")
 
+def test_dynamic_reports():
+    """Verify dynamic report generation across modes, locations, honest timing, and citations."""
+    import asyncio
+    from app.api.v1.endpoints.reports import generate_report
+
+    # 1. Test Seeded Coalfield & Block (North Karanpura)
+    req_nk = ReportGenerationRequest(
+        mode="PQ_FAST_RESPONSE",
+        coalfield="North Karanpura",
+        block="Block IV (Tandwa Sector)",
+        includeCitations=True
+    )
+    rep_nk = asyncio.run(generate_report(req_nk))
+    assert "North Karanpura" in rep_nk.title
+    assert "Block IV (Tandwa Sector)" in rep_nk.title
+    assert "North Karanpura" in rep_nk.executiveSummary
+    assert rep_nk.executionTimeSeconds > 0, "Execution time must be positive"
+    assert rep_nk.efficiencyGainPercent > 99.0, f"Efficiency gain should be > 99%, got {rep_nk.efficiencyGainPercent}"
+    assert len(rep_nk.digitalSignatureHash) == 64, "Digital signature must be 64-char SHA-256"
+    assert len(rep_nk.citations) >= 2, "Report must include grounded citations"
+    for cit in rep_nk.citations:
+        assert len(cit.sha256Hash) == 64, f"Citation hash must be 64-char SHA-256, got {len(cit.sha256Hash)}"
+    print("[PASS] Seeded report generation (North Karanpura PQ) verified.")
+
+    # 2. Test Unseeded Regional Coalfield & Block (Raniganj) — must NOT show North Karanpura
+    req_raniganj = ReportGenerationRequest(
+        mode="EXECUTIVE_SUMMARY",
+        coalfield="Raniganj",
+        block="West Block B",
+        includeCitations=True
+    )
+    rep_raniganj = asyncio.run(generate_report(req_raniganj))
+    assert "Raniganj" in rep_raniganj.title
+    assert "West Block B" in rep_raniganj.title
+    assert "Raniganj" in rep_raniganj.executiveSummary
+    assert "North Karanpura" not in rep_raniganj.executiveSummary, "Unseeded block must not mention North Karanpura"
+    assert rep_raniganj.executionTimeSeconds > 0
+    assert len(rep_raniganj.digitalSignatureHash) == 64
+    for cit in rep_raniganj.citations:
+        assert len(cit.sha256Hash) == 64
+        assert "Raniganj" in cit.snippetText
+    print("[PASS] Dynamic unseeded report generation (Raniganj Executive Summary) verified.")
+
+    # 3. Test Statutory Audit and Historical Trend Modes
+    req_audit = ReportGenerationRequest(
+        mode="STATUTORY_AUDIT",
+        coalfield="Singrauli",
+        block="Northern Sector",
+        includeCitations=True
+    )
+    rep_audit = asyncio.run(generate_report(req_audit))
+    assert rep_audit.mode == "STATUTORY_AUDIT"
+    assert "Singrauli" in rep_audit.title
+    assert "CMR 2017" in rep_audit.executiveSummary
+
+    req_hist = ReportGenerationRequest(
+        mode="HISTORICAL_TREND",
+        coalfield="Jharia",
+        block="Sector 7",
+        includeCitations=True
+    )
+    rep_hist = asyncio.run(generate_report(req_hist))
+    assert rep_hist.mode == "HISTORICAL_TREND"
+    assert "Jharia" in rep_hist.title
+    assert len(rep_hist.findingsTable) == 3, "Historical trend must show 3 multi-decadal campaigns"
+    print("[PASS] Statutory Audit and Historical Trend modes verified.")
+
 if __name__ == "__main__":
     test_seed_data_integrity()
     test_discrepancy_arithmetic()
@@ -110,4 +177,5 @@ if __name__ == "__main__":
     test_borehole_table_parser()
     test_query_orchestrator_citations_and_policy()
     test_borehole_pagination()
+    test_dynamic_reports()
     print("All backend tests passed successfully!")

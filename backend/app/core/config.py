@@ -1,6 +1,24 @@
-from typing import List, Union
-from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl, validator
+import os
+from typing import List
+
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:
+    from pydantic import BaseModel
+    class BaseSettings(BaseModel):
+        def __init__(self, **values):
+            super().__init__(**values)
+            # Read env vars if available
+            for field in self.model_fields:
+                if field in os.environ:
+                    val = os.environ[field]
+                    current_val = getattr(self, field)
+                    if isinstance(current_val, list):
+                        setattr(self, field, [v.strip() for v in val.split(",") if v.strip()])
+                    elif isinstance(current_val, bool):
+                        setattr(self, field, val.lower() in ("true", "1", "yes"))
+                    else:
+                        setattr(self, field, val)
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "GeoMine AI Backend (SIH26023)"
@@ -25,3 +43,4 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 settings = Settings()
+
