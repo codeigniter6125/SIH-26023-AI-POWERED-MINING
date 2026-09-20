@@ -1,53 +1,145 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field
 
-# Document Schemas
-class DocumentBase(BaseModel):
+# ---------------------------------------------------------
+# Core Data Contracts (Matching PRD Section 4 & Design Doc)
+# ---------------------------------------------------------
+
+class BoundingBox(BaseModel):
+    x: float = Field(..., description="X coordinate in pts or percent")
+    y: float = Field(..., description="Y coordinate in pts or percent")
+    width: float = Field(..., description="Bounding box width")
+    height: float = Field(..., description="Bounding box height")
+    pageNumber: int = Field(..., description="1-indexed document page number")
+
+class FactEvidenceCitation(BaseModel):
+    documentId: str
+    documentTitle: str
+    agency: Literal['MECL', 'CMPDI', 'GSI', 'CIL']
+    year: int
+    boundingBox: Optional[BoundingBox] = None
+    sha256Hash: str = Field(..., description="SHA-256 tamper-evident cryptographic hash")
+    extractionConfidence: float = Field(..., ge=0.0, le=1.0)
+    snippetText: Optional[str] = None
+
+class LithologicalInterval(BaseModel):
+    fromDepthMeters: float
+    toDepthMeters: float
+    thicknessMeters: float
+    lithologyDescription: str
+    coreRecoveryPercent: float
+    seamCode: Optional[Literal['SEAM_IX', 'SEAM_X', 'INTERBURDEN', 'ALLUVIUM', 'SANDSTONE', 'SHALE']] = None
+    sourceBoundingBox: Optional[BoundingBox] = None
+
+class ProximateAssay(BaseModel):
+    ashPercent: float
+    moisturePercent: float
+    volatileMatterPercent: Optional[float] = None
+    fixedCarbonPercent: Optional[float] = None
+    grossCalorificValueKcal: float
+
+class BoreholeCoordinates(BaseModel):
+    latitude: str
+    longitude: str
+    collarElevationMsl: float
+    datum: str = "WGS84 / UTM Zone 45N"
+
+class BoreholeRecord(BaseModel):
+    boreholeId: str
+    coalfield: str
+    sectorBlock: str
+    coordinates: BoreholeCoordinates
+    totalDrilledDepthMeters: float
+    targetSeamThickness: float
+    coalGrade: Literal['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'Coking W-IV']
+    proximateAssay: ProximateAssay
+    statutoryClearance: Literal['DGMS_CLEARED', 'UNDER_JOINT_REVIEW', 'FLAGGED_DISCREPANCY']
+    intervals: List[LithologicalInterval] = []
+    evidenceTrail: List[FactEvidenceCitation] = []
+    corePhotoUrl: Optional[str] = None
+    discrepancyId: Optional[str] = None
+
+# ---------------------------------------------------------
+# Verification & Reconciliation Queue
+# ---------------------------------------------------------
+
+class DiscrepancyItem(BaseModel):
+    discrepancyId: str
+    boreholeId: str
+    coalfield: str
+    block: str
+    seam: str
+    agencyA: str
+    surveyYearA: int
+    reportedThicknessA: float
+    methodA: str
+    agencyB: str
+    surveyYearB: int
+    reportedThicknessB: float
+    methodB: str
+    thicknessDeltaMeters: float
+    status: Literal['UNDER_REVIEW', 'RESOLVED', 'REJECTED']
+    verifiedThicknessMeters: Optional[float] = None
+    reconciliationNotes: str
+    digitalSignatureHash: str
+    auditDocketNo: str
+
+# ---------------------------------------------------------
+# Report Generation Schemas
+# ---------------------------------------------------------
+
+ReportModeType = Literal['EXECUTIVE_SUMMARY', 'HISTORICAL_TREND', 'STATUTORY_AUDIT', 'PQ_FAST_RESPONSE']
+
+class ReportGenerationRequest(BaseModel):
+    mode: ReportModeType
+    coalfield: str
+    block: str
+    questionTitle: Optional[str] = None
+    includeCitations: bool = True
+
+class GeneratedReportResponse(BaseModel):
+    reportId: str
     title: str
-    block_name: Optional[str] = None
-    coalfield: Optional[str] = None
-    subsidiary: Optional[str] = None
-    year: Optional[int] = None
+    mode: ReportModeType
+    generatedAt: str
+    executionTimeSeconds: float
+    manualBaselineTimeMinutes: float = 220.0  # ~3 hours 40 mins
+    efficiencyGainPercent: float = 98.2
+    executiveSummary: str
+    findingsTable: List[Dict[str, Any]] = []
+    citations: List[FactEvidenceCitation] = []
+    statutoryClearanceStatus: str
+    dgmsDocketNo: str
+    digitalSignatureHash: str
 
-class DocumentResponse(DocumentBase):
-    id: str
+# ---------------------------------------------------------
+# Ingestion Schemas
+# ---------------------------------------------------------
+
+class IngestionJobResponse(BaseModel):
+    jobId: str
     filename: str
-    status: str
-    page_count: int = 0
-    created_at: str
+    pageCount: int
+    status: Literal['PENDING', 'PROCESSING', 'EXTRACTED', 'VERIFIED']
+    confidenceScore: float
+    extractedTables: int
+    extractedBoreholes: List[str] = []
+    boundingBoxes: List[BoundingBox] = []
 
-# Query Schemas
-class QueryRequest(BaseModel):
+# ---------------------------------------------------------
+# Conversational / AI Query Schemas
+# ---------------------------------------------------------
+
+class HybridQueryRequest(BaseModel):
     query: str
-    session_id: Optional[str] = None
+    sessionId: Optional[str] = None
     filters: Optional[Dict[str, Any]] = None
 
-class Citation(BaseModel):
-    document_id: str
-    document_name: str
-    page: int
-    bounding_box: Optional[List[float]] = None
-    snippet: str
-
-class QueryResponse(BaseModel):
+class HybridQueryResponse(BaseModel):
+    query: str
     answer: str
-    confidence_score: float
-    reasoning_steps: List[str] = []
-    citations: List[Citation] = []
-    validation_status: str
-    agent_trace: Dict[str, Any] = {}
-
-# Geological / Reserve Calculation Schemas
-class ReserveCalculationRequest(BaseModel):
-    block_name: str
-    seam_name: str
-    area_sq_m: float = Field(..., description="Block area in square meters")
-    thickness_m: float = Field(..., description="Average seam thickness in meters")
-    specific_gravity: float = Field(1.4, description="Specific gravity (t/m^3), default 1.4 for coal")
-
-class ReserveCalculationResponse(BaseModel):
-    seam_name: str
-    geological_reserves_mt: float
-    grade_classification: Optional[str] = None
-    formula_used: str
-    is_validated: bool
+    confidenceScore: float
+    routingPath: str
+    citations: List[FactEvidenceCitation] = []
+    agentSteps: List[str] = []
+    validated: bool
