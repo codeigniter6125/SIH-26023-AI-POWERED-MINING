@@ -45,8 +45,29 @@ def test_mining_calculators():
     assert grade_7 == "G7", f"GCV 5420 must be G7, got {grade_7}"
     print("[PASS] Mining calculators verified.")
 
+def test_borehole_table_parser():
+    """Verify OCR error tolerance, domain validation, and bbox preservation."""
+    from ingestion.parsers.borehole_parser import BoreholeTableParser
+    parser = BoreholeTableParser()
+    test_rows = [
+        {"from_m": "0.00", "to_m": "42.10", "stratum": "Alluvium", "bbox": [120.0, 340.0, 420.0, 18.0]},
+        {"from_m": "42.10m", "to_m": "114.28m", "stratum": "Sandstone", "bbox": [120.0, 362.0, 420.0, 18.0]},
+        {"from_m": "114.28", "to_m": "122.70", "stratum": "Seam IX", "bbox": [120.0, 384.0, 420.0, 22.0]},
+        # Corrupted row (depth_to < depth_from)
+        {"from_m": "130.00", "to_m": "125.00", "stratum": "Swapped Depths", "bbox": [100.0, 400.0, 300.0, 20.0]},
+        # OCR character substitution ('14O.5m')
+        {"from_m": "135.5m", "to_m": "14O.5m", "stratum": "Interburden", "bbox": [120.0, 410.0, 420.0, 18.0]},
+    ]
+    parsed = parser.parse_lithology_table(test_rows, "BH-NK-094")
+    assert len(parsed) == 4, f"Expected 4 valid rows (1 skipped), got {len(parsed)}"
+    assert all(p.thickness > 0 for p in parsed), "All intervals must have strictly positive thickness"
+    assert all(p.bbox is not None for p in parsed), "All parsed intervals must preserve their bbox"
+    assert any("Domain validation violation" in w for w in parser.last_warnings), "Warning must be recorded for swapped depths"
+    print("[PASS] Borehole table parser domain validation & bbox verified.")
+
 if __name__ == "__main__":
     test_seed_data_integrity()
     test_discrepancy_arithmetic()
     test_mining_calculators()
+    test_borehole_table_parser()
     print("All backend tests passed successfully!")
