@@ -7,10 +7,13 @@ import sys
 import os
 from pathlib import Path
 
-# Add project root to sys.path for direct script execution
+# Add project root and backend to sys.path for direct script execution
 project_root = str(Path(__file__).resolve().parent.parent)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+backend_path = str(Path(__file__).resolve().parent.parent / "backend")
+if backend_path not in sys.path:
+    sys.path.insert(0, backend_path)
 
 from typing import Dict, Any, List
 from agents.router.router_agent import RouterAgent, RoutingDecision
@@ -88,8 +91,8 @@ if __name__ == "__main__":
         except Exception:
             pass
     orchestrator = MultiAgentOrchestrator()
-    sample_query = "Calculate geological coal reserve for Block A with area 500,000 sq m and seam thickness 4.5 m."
-    result = orchestrator.handle_query(sample_query, {"area_sq_m": 500000.0, "thickness_m": 4.5})
+    sample_query = "What causes coal seams to split into multiple benches within the same borehole?"
+    result = orchestrator.handle_query(sample_query)
     print("Multi-Agent Pipeline Test:")
     print(f"Intent: {result['routing_decision']['intent']}")
     print(f"Answer: {result['final_answer']}")

@@ -53,34 +53,39 @@ class CoreGeologicalAgent:
             f"{context}\n\nQuestion: {query}"
         )
 
-        try:
-            # Modern Google GenAI Unified SDK (google-genai)
-            from google import genai
-            client = genai.Client(api_key=self.api_key)
-            response = client.models.generate_content(
-                model=self.model_name,
-                contents=prompt
-            )
-            if response and response.text:
-                return response.text.strip()
-        except ImportError:
-            # Graceful fallback to legacy google.generativeai if google-genai is not yet installed
+        import time
+        for attempt in range(3):
             try:
-                import google.generativeai as legacy_genai
-                legacy_genai.configure(api_key=self.api_key)
-                # If model_name is a legacy-compatible 1.5 model, use it; otherwise default safely to gemini-1.5-flash
-                legacy_model = self.model_name if "1.5" in self.model_name else "gemini-1.5-flash"
-                model = legacy_genai.GenerativeModel(legacy_model)
-                response = model.generate_content(prompt)
+                # Modern Google GenAI Unified SDK (google-genai)
+                from google import genai
+                client = genai.Client(api_key=self.api_key)
+                response = client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt
+                )
                 if response and response.text:
                     return response.text.strip()
-            except Exception as legacy_err:
-                print(f"[CoreAgent] Gemini API unavailable ({legacy_err}), falling back to Domain RAG engine.")
+            except ImportError:
+                # Graceful fallback to legacy google.generativeai if google-genai is not yet installed
+                try:
+                    import google.generativeai as legacy_genai
+                    legacy_genai.configure(api_key=self.api_key)
+                    legacy_model = self.model_name if "1.5" in self.model_name else "gemini-1.5-flash"
+                    model = legacy_genai.GenerativeModel(legacy_model)
+                    response = model.generate_content(prompt)
+                    if response and response.text:
+                        return response.text.strip()
+                except Exception as legacy_err:
+                    print(f"[CoreAgent] Gemini API unavailable ({legacy_err}), falling back to Domain RAG engine.")
+                    return None
+            except Exception as e:
+                err_str = str(e)
+                if ("503" in err_str or "UNAVAILABLE" in err_str or "429" in err_str) and attempt < 2:
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+                # Fall back gracefully to domain RAG on API errors
+                print(f"[CoreAgent] Gemini API unavailable ({e}), falling back to Domain RAG engine.")
                 return None
-        except Exception as e:
-            # Fall back gracefully to domain RAG on API errors
-            print(f"[CoreAgent] Gemini API unavailable ({e}), falling back to Domain RAG engine.")
-            return None
 
     def _analyze_borehole_statistics(self, metric: str) -> Dict[str, Any]:
         """Computes live empirical statistics across the seeded exploration well registry."""
@@ -219,6 +224,7 @@ class CoreGeologicalAgent:
             area = float(context.get("area_sq_m", 2400000.0))
             thickness = float(context.get("thickness_m", 8.42))
             sg = float(context.get("specific_gravity", 1.40))
+            area_km2 = area / 1_000_000.0
             
             calc_result = self.calculator.calculate_geological_reserves(area, thickness, sg)
             grade, band = self.calculator.get_coal_grade_from_gcv(5420.0)
@@ -229,10 +235,10 @@ class CoreGeologicalAgent:
             return {
                 "status": "success",
                 "task_type": task_type,
-                "data": {**calc_result, "grade": grade, "grade_band": band},
+                "data": {**calc_result, "grade": grade, "grade_band": band, "area_km2": area_km2},
                 "narrative": (
                     f"Geological Reserve Estimation:\n"
-                    f"- Influence Area: {area:,.0f} m² (2.40 km²)\n"
+                    f"- Influence Area: {area:,.0f} m² ({area_km2:.2f} km²)\n"
                     f"- Mean Seam Thickness: {thickness:.2f} meters\n"
                     f"- Specific Gravity: {sg:.2f} t/m³\n"
                     f"- Total In-Situ Geological Reserve: {calc_result['reserves_million_tonnes']:.2f} Million Tonnes (MT).\n"
