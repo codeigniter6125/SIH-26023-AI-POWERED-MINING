@@ -168,7 +168,7 @@ const INITIAL_DISCREPANCIES: DiscrepancyItem[] = [
     status: "UNDER_REVIEW",
     reconciliationNotes:
       "Historical MECL 1998 survey under-reported thickness due to core washout. CMPDI 2021 sonic caliper logs confirm 8.42m true thickness (+5.44 MT proved reserve impact).",
-    digitalSignatureHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    digitalSignatureHash: "f4c324147c0353070c48a311b9a26c78309f2d63bfd9c1abc54864ae1427c96e",
     auditDocketNo: "CMPDI/RI-II/NK-IV/DISC-094/2026",
   },
 ];

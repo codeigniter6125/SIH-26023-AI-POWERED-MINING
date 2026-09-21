@@ -3,6 +3,12 @@ Seeded Geological Dataset for CMPDI / Coal India Limited (SIH26023).
 Focus Area: North Karanpura Coalfield, Block IV.
 Includes historical exploration records (MECL 1998, CMPDI 2021, GSI 1985).
 """
+import sys
+from pathlib import Path
+
+_backend_dir = str(Path(__file__).resolve().parent.parent.parent)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
 
 from typing import List
 from app.models.schemas import (
@@ -14,6 +20,11 @@ from app.models.schemas import (
     BoundingBox,
     DiscrepancyItem
 )
+
+try:
+    from app.core.crypto import generate_sha256
+except ImportError:
+    from backend.app.core.crypto import generate_sha256
 
 # -------------------------------------------------------------------------
 # Seeded Borehole Records
@@ -226,6 +237,13 @@ SEED_BOREHOLES: List[BoreholeRecord] = [
 # Seeded Discrepancy Queue Items (PRD Section 5.1 & Design Doc Section 6.3)
 # -------------------------------------------------------------------------
 
+_disc_094_notes = (
+    "Historical MECL 1998 rotary survey under-reported thickness due to core loss and washout in brittle vitrain horizon. "
+    "CMPDI 2021 sonic caliper & gamma-density logs confirm true thickness of 8.42m. "
+    "Net reserve impact across 2.4 sq km influence polygon: +5.44 Million Tonnes (Proved UNFC 111)."
+)
+_disc_096_notes = "Fault boundary proximity dip angle correction required before inventory sign-off."
+
 SEED_DISCREPANCIES: List[DiscrepancyItem] = [
     DiscrepancyItem(
         discrepancyId="DISC-094",
@@ -244,12 +262,8 @@ SEED_DISCREPANCIES: List[DiscrepancyItem] = [
         thicknessDeltaMeters=1.62,
         status="UNDER_REVIEW",
         verifiedThicknessMeters=None,
-        reconciliationNotes=(
-            "Historical MECL 1998 rotary survey under-reported thickness due to core loss and washout in brittle vitrain horizon. "
-            "CMPDI 2021 sonic caliper & gamma-density logs confirm true thickness of 8.42m. "
-            "Net reserve impact across 2.4 sq km influence polygon: +5.44 Million Tonnes (Proved UNFC 111)."
-        ),
-        digitalSignatureHash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        reconciliationNotes=_disc_094_notes,
+        digitalSignatureHash=generate_sha256(f"DISC-094:{_disc_094_notes}"),
         auditDocketNo="CMPDI/RI-II/NK-IV/DISC-094/2026"
     ),
     DiscrepancyItem(
@@ -269,8 +283,8 @@ SEED_DISCREPANCIES: List[DiscrepancyItem] = [
         thicknessDeltaMeters=0.85,
         status="UNDER_REVIEW",
         verifiedThicknessMeters=None,
-        reconciliationNotes="Fault boundary proximity dip angle correction required before inventory sign-off.",
-        digitalSignatureHash="7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069",
+        reconciliationNotes=_disc_096_notes,
+        digitalSignatureHash=generate_sha256(f"DISC-096:{_disc_096_notes}"),
         auditDocketNo="CMPDI/RI-II/NK-IV/DISC-096/2026"
     )
 ]
