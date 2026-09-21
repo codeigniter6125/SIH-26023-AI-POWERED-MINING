@@ -10,7 +10,6 @@ IntentType = Literal[
     "PQ_FAST_RESPONSE",
     "RESERVE_ESTIMATION",
     "DISCREPANCY_ANALYSIS",
-    "STRATIGRAPHIC_CORRELATION",
     "STATUTORY_AUDIT",
     "GENERAL_QUERY"
 ]
@@ -69,19 +68,11 @@ class RouterAgent:
                 parameters={"query": user_query},
                 reasoning="Query targets statutory safety clearances or DGMS CMR compliance."
             )
-        elif any(term in query_lower for term in ["borehole", "seam", "correlation", "depth", "lithology", "strata"]):
-            return RoutingDecision(
-                intent="STRATIGRAPHIC_CORRELATION",
-                confidence=0.89,
-                target_agents=["CoreGeologicalAgent", "ValidationAgent"],
-                parameters={"query": user_query},
-                reasoning="Query targets borehole logs, stratigraphic correlation, or seam thickness continuity."
-            )
         else:
             return RoutingDecision(
                 intent="GENERAL_QUERY",
-                confidence=0.85,
+                confidence=0.88,
                 target_agents=["CoreGeologicalAgent"],
                 parameters={"query": user_query},
-                reasoning="Default retrieval path using hybrid vector and document search."
+                reasoning="General or scientific exploration inquiry routed to Core Agent for synthesis."
             )
