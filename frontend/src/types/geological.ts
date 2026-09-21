@@ -13,7 +13,7 @@ export interface FactEvidenceCitation {
   year: number;
   boundingBox?: BoundingBox;
   sha256Hash: string;
-  extractionConfidence: number;
+  extractionConfidence?: number | null;
   snippetText?: string;
 }
 

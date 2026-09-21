@@ -321,7 +321,7 @@ export const BoreholeDirectoryView: React.FC<BoreholeDirectoryViewProps> = ({
                           <Hash className="w-3 h-3 text-slate-400" />
                           <span className="truncate">{cit.sha256Hash}</span>
                           <span className="text-emerald-700 font-semibold ml-auto">
-                            Confidence: {(cit.extractionConfidence * 100).toFixed(1)}%
+                            {cit.extractionConfidence != null && cit.extractionConfidence > 0 ? `Confidence: ${(cit.extractionConfidence * 100).toFixed(1)}%` : "AI Synthesis"}
                           </span>
                         </div>
                       </div>

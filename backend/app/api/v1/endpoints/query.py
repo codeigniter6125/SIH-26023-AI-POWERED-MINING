@@ -56,9 +56,9 @@ async def execute_hybrid_query(req: HybridQueryRequest):
             elif isinstance(raw_bbox, dict):
                 bbox_obj = BoundingBox(**raw_bbox)
 
-            doc_id = cit.get("documentId", "CMPDI-GR-2021-NK4")
-            doc_title = cit.get("documentTitle", "CMPDI Detailed Geological Assessment Report")
-            page_no = cit.get("page", 12)
+            doc_id = cit.get("documentId", "AI-GENERAL-KNOWLEDGE")
+            doc_title = cit.get("documentTitle", "AI-Synthesized Response")
+            page_no = cit.get("page", 0)
             snippet = cit.get("snippetText", cit.get("section", "Geological Assessment"))
             
             # Ensure authentic 64-character SHA-256 hash
@@ -71,10 +71,10 @@ async def execute_hybrid_query(req: HybridQueryRequest):
                     documentId=doc_id,
                     documentTitle=doc_title,
                     agency=cit.get("agency", "CMPDI"),
-                    year=cit.get("year", 2021),
+                    year=cit.get("year", 2026),
                     boundingBox=bbox_obj,
                     sha256Hash=sha256,
-                    extractionConfidence=cit.get("extractionConfidence", 0.98),
+                    extractionConfidence=cit.get("extractionConfidence"),
                     snippetText=snippet
                 )
             )

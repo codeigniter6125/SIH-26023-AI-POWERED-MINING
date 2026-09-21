@@ -340,14 +340,18 @@ class CoreGeologicalAgent:
         )
         gemini_response = self._try_gemini_generation(query, corpus_summary)
         if gemini_response:
-            snippet = f"Dynamic AI Geological Synthesis for query: '{query}'"
-            cit_hash = generate_citation_hash("CMPDI-AI-RAG", "CMPDI Core Agent Synthesis", 1, snippet)
-            return {
-                "status": "success",
-                "task_type": task_type,
-                "data": {"llmModel": self.model_name, "mode": "Live Gemini AI Generation"},
-                "narrative": gemini_response,
-                "citations": [
+            # Distinguish localized exploration inquiries from general geological science inquiries
+            is_local_corpus_query = any(
+                term in q_lower for term in [
+                    "north karanpura", "block iv", "tandwa", "bh-nk", "seam ix", "seam x",
+                    "raniganj", "jharia", "singrauli", "docket", "inventory", "proved reserve"
+                ]
+            )
+
+            if is_local_corpus_query:
+                snippet = f"CMPDI Block IV Exploration Records & Geological Synthesis for query: '{query}'"
+                cit_hash = generate_citation_hash("CMPDI-GR-2021-NK4", "CMPDI Block IV Assessment Report", 1, snippet)
+                citations = [
                     {
                         "documentId": "CMPDI-GR-2021-NK4",
                         "documentTitle": "CMPDI Detailed Geological Assessment Report — Block IV North Karanpura",
@@ -360,6 +364,34 @@ class CoreGeologicalAgent:
                         "snippetText": snippet
                     }
                 ]
+            else:
+                # Option A (Honest Citation): Explicitly declare general AI knowledge, no fake report, no fake bounding box
+                snippet = f"AI-Synthesized Response (General Geological Knowledge — Not Retrieved from CMPDI Corpus) for query: '{query}'"
+                cit_hash = generate_citation_hash("AI-GENERAL-KNOWLEDGE", "AI-Synthesized Response", 0, snippet)
+                citations = [
+                    {
+                        "documentId": "AI-GENERAL-KNOWLEDGE",
+                        "documentTitle": "AI-Synthesized Response (General Geological Knowledge — Not Retrieved from CMPDI Corpus)",
+                        "agency": "CMPDI",
+                        "year": 2026,
+                        "page": 0,
+                        "boundingBox": None,
+                        "sha256Hash": cit_hash,
+                        "extractionConfidence": None,
+                        "snippetText": snippet
+                    }
+                ]
+
+            return {
+                "status": "success",
+                "task_type": task_type,
+                "data": {
+                    "llmModel": self.model_name,
+                    "mode": "Live Gemini AI Generation",
+                    "grounding": "Local Corpus" if is_local_corpus_query else "General Geological Knowledge"
+                },
+                "narrative": gemini_response,
+                "citations": citations
             }
 
         # B. Dynamic Statistical Reasoning for ash / thickness / quality inquiries

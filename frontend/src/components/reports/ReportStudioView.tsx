@@ -320,9 +320,9 @@ export const ReportStudioView: React.FC = () => {
                     </div>
                     <p className="text-slate-600 italic line-clamp-2">"{cit.snippetText}"</p>
                     <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
-                      <span>Page {cit.boundingBox?.pageNumber || 12}</span>
+                      <span>{cit.boundingBox?.pageNumber ? `Page ${cit.boundingBox.pageNumber}` : "AI Knowledge Base"}</span>
                       <span className="text-emerald-700 font-semibold flex items-center">
-                        Verified 98.4% <ChevronRight className="w-3 h-3 ml-0.5" />
+                        {cit.extractionConfidence != null && cit.extractionConfidence > 0 ? `Verified ${(cit.extractionConfidence * 100).toFixed(1)}%` : "AI Synthesis"} <ChevronRight className="w-3 h-3 ml-0.5" />
                       </span>
                     </div>
                   </div>
@@ -362,11 +362,11 @@ export const ReportStudioView: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-slate-500">Page Reference:</span>
-                  <div className="font-bold text-slate-900">Page {selectedCitation.boundingBox?.pageNumber || 12}</div>
+                  <div className="font-bold text-slate-900">{selectedCitation.boundingBox?.pageNumber ? `Page ${selectedCitation.boundingBox.pageNumber}` : "N/A (General Knowledge)"}</div>
                 </div>
                 <div>
                   <span className="text-slate-500">Confidence Score:</span>
-                  <div className="font-bold text-emerald-700">{(selectedCitation.extractionConfidence * 100).toFixed(1)}%</div>
+                  <div className="font-bold text-emerald-700">{selectedCitation.extractionConfidence != null && selectedCitation.extractionConfidence > 0 ? `${(selectedCitation.extractionConfidence * 100).toFixed(1)}%` : "N/A (AI Synthesis)"}</div>
                 </div>
               </div>
 

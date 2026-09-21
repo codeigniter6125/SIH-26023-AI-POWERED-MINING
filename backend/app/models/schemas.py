@@ -19,7 +19,7 @@ class FactEvidenceCitation(BaseModel):
     year: int
     boundingBox: Optional[BoundingBox] = None
     sha256Hash: str = Field(..., description="SHA-256 tamper-evident cryptographic hash")
-    extractionConfidence: float = Field(..., ge=0.0, le=1.0)
+    extractionConfidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     snippetText: Optional[str] = None
 
 class LithologicalInterval(BaseModel):
