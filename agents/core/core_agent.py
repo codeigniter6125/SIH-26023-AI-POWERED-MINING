@@ -58,7 +58,9 @@ class CoreGeologicalAgent:
             try:
                 import google.generativeai as legacy_genai
                 legacy_genai.configure(api_key=self.api_key)
-                model = legacy_genai.GenerativeModel("gemini-1.5-flash")
+                # If model_name is a legacy-compatible 1.5 model, use it; otherwise default safely to gemini-1.5-flash
+                legacy_model = self.model_name if "1.5" in self.model_name else "gemini-1.5-flash"
+                model = legacy_genai.GenerativeModel(legacy_model)
                 response = model.generate_content(prompt)
                 if response and response.text:
                     return response.text.strip()
