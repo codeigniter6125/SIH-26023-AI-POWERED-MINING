@@ -340,13 +340,19 @@ class CoreGeologicalAgent:
         )
         gemini_response = self._try_gemini_generation(query, corpus_summary)
         if gemini_response:
-            # Distinguish localized exploration inquiries from general geological science inquiries
-            is_local_corpus_query = any(
+            # Distinguish localized exploration inquiries from general / comparative geological inquiries
+            mentions_corpus = any(
                 term in q_lower for term in [
                     "north karanpura", "block iv", "tandwa", "bh-nk", "seam ix", "seam x",
                     "raniganj", "jharia", "singrauli", "docket", "inventory", "proved reserve"
                 ]
             )
+            is_broad_comparative = any(
+                term in q_lower for term in [
+                    "similar to", "in general", "compare with", "difference between", "how does it compare", "broadly"
+                ]
+            )
+            is_local_corpus_query = mentions_corpus and not is_broad_comparative
 
             if is_local_corpus_query:
                 snippet = f"CMPDI Block IV Exploration Records & Geological Synthesis for query: '{query}'"
