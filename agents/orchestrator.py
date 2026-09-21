@@ -82,6 +82,11 @@ class MultiAgentOrchestrator:
         }
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
     orchestrator = MultiAgentOrchestrator()
     sample_query = "Calculate geological coal reserve for Block A with area 500,000 sq m and seam thickness 4.5 m."
     result = orchestrator.handle_query(sample_query, {"area_sq_m": 500000.0, "thickness_m": 4.5})
