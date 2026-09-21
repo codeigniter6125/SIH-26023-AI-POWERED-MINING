@@ -2,10 +2,14 @@ import sys
 from pathlib import Path
 from typing import List
 
-# Ensure repo root is in sys.path for agents import
-repo_root = str(Path(__file__).resolve().parent.parent.parent.parent.parent)
-if repo_root not in sys.path:
-    sys.path.insert(0, repo_root)
+# Ensure repo root and backend are in sys.path for agents and app import
+for parent in Path(__file__).resolve().parents:
+    if (parent / "agents").exists() and (parent / "backend").exists():
+        if str(parent) not in sys.path:
+            sys.path.insert(0, str(parent))
+        if str(parent / "backend") not in sys.path:
+            sys.path.insert(0, str(parent / "backend"))
+        break
 
 from fastapi import APIRouter
 from starlette.concurrency import run_in_threadpool

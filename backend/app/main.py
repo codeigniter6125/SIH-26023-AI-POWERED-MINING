@@ -1,3 +1,15 @@
+import sys
+from pathlib import Path
+
+# Ensure repo root and backend directory are in sys.path
+for parent in Path(__file__).resolve().parents:
+    if (parent / "agents").exists() and (parent / "backend").exists():
+        if str(parent) not in sys.path:
+            sys.path.insert(0, str(parent))
+        if str(parent / "backend") not in sys.path:
+            sys.path.insert(0, str(parent / "backend"))
+        break
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings

@@ -6,10 +6,24 @@ All citations are grounded with authentic 64-character SHA-256 hashes.
 """
 
 import os
-import re
+import sys
+from pathlib import Path
+
+# Ensure project root and backend are on sys.path for direct or cross-package imports
+_project_root = str(Path(__file__).resolve().parent.parent.parent)
+_backend_dir = str(Path(__file__).resolve().parent.parent.parent / "backend")
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
 from typing import Dict, Any, List, Optional
 from agents.core.mining_calculators import MiningCalculator
-from agents.core.crypto import generate_citation_hash
+
+try:
+    from app.core.crypto import generate_citation_hash, generate_sha256
+except ImportError:
+    from backend.app.core.crypto import generate_citation_hash, generate_sha256
 
 # Safely import seed boreholes for local domain RAG
 try:
