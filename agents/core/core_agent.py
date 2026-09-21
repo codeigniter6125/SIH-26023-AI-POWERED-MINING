@@ -30,10 +30,20 @@ class CoreGeologicalAgent:
         self.model_name = model_name
         self.calculator = MiningCalculator()
         self.api_key = os.environ.get("GEMINI_API_KEY", "")
+        if not self.api_key:
+            try:
+                from app.core.config import settings
+                self.api_key = settings.GEMINI_API_KEY
+            except Exception:
+                try:
+                    from backend.app.core.config import settings
+                    self.api_key = settings.GEMINI_API_KEY
+                except Exception:
+                    pass
 
     def _try_gemini_generation(self, query: str, context: str) -> Optional[str]:
         """Attempts live LLM completion using modern google-genai SDK if GEMINI_API_KEY is available."""
-        if not self.api_key:
+        if not self.api_key or self.api_key.strip() in ("", "your_gemini_api_key_here", "YOUR_API_KEY_HERE", "placeholder"):
             return None
 
         prompt = (
