@@ -26,29 +26,45 @@ class CoreGeologicalAgent:
     Supports dynamic statistical analysis, live Gemini AI generation, and domain RAG.
     """
 
-    def __init__(self, model_name: str = "gemini-1.5-flash"):
+    def __init__(self, model_name: str = "gemini-2.5-flash"):
         self.model_name = model_name
         self.calculator = MiningCalculator()
         self.api_key = os.environ.get("GEMINI_API_KEY", "")
 
     def _try_gemini_generation(self, query: str, context: str) -> Optional[str]:
-        """Attempts live LLM completion if GEMINI_API_KEY is available."""
+        """Attempts live LLM completion using modern google-genai SDK if GEMINI_API_KEY is available."""
         if not self.api_key:
             return None
 
+        prompt = (
+            "You are the Core Geological Intelligence Agent for the Central Mine Planning & Design Institute (CMPDI), "
+            "Ministry of Coal, Government of India. Provide authoritative, concise, factual, and domain-accurate answers "
+            "for exploration geologists, mine planners, and parliamentary inquiry officers. Use the provided geological data:\n\n"
+            f"{context}\n\nQuestion: {query}"
+        )
+
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=self.api_key)
-            model = genai.GenerativeModel(self.model_name)
-            system_prompt = (
-                "You are the Core Geological Intelligence Agent for the Central Mine Planning & Design Institute (CMPDI), "
-                "Ministry of Coal, Government of India. Provide authoritative, concise, factual, and domain-accurate answers "
-                "for exploration geologists, mine planners, and parliamentary inquiry officers. Use the provided geological data:\n\n"
-                f"{context}\n\nQuestion: {query}"
+            # Modern Google GenAI Unified SDK (google-genai)
+            from google import genai
+            client = genai.Client(api_key=self.api_key)
+            response = client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
             )
-            response = model.generate_content(system_prompt)
             if response and response.text:
                 return response.text.strip()
+        except ImportError:
+            # Graceful fallback to legacy google.generativeai if google-genai is not yet installed
+            try:
+                import google.generativeai as legacy_genai
+                legacy_genai.configure(api_key=self.api_key)
+                model = legacy_genai.GenerativeModel("gemini-1.5-flash")
+                response = model.generate_content(prompt)
+                if response and response.text:
+                    return response.text.strip()
+            except Exception as legacy_err:
+                print(f"[CoreAgent] Gemini API unavailable ({legacy_err}), falling back to Domain RAG engine.")
+                return None
         except Exception as e:
             # Fall back gracefully to domain RAG on API errors
             print(f"[CoreAgent] Gemini API unavailable ({e}), falling back to Domain RAG engine.")
