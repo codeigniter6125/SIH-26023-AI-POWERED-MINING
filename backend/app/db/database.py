@@ -14,7 +14,15 @@ raw_url = settings.DATABASE_URL
 if raw_url.startswith("sqlite+aiosqlite://"):
     raw_url = raw_url.replace("sqlite+aiosqlite://", "sqlite://", 1)
 
-# Ensure relative SQLite path is resolved relative to backend directory or project root
+# Ensure relative SQLite path is resolved relative to backend directory
+if raw_url.startswith("sqlite:///"):
+    path_part = raw_url[len("sqlite:///"):]
+    # Check if not absolute (Windows C:/ or POSIX /)
+    if not (Path(path_part).is_absolute() or (len(path_part) > 1 and path_part[1] == ":")):
+        backend_dir = Path(__file__).resolve().parent.parent.parent
+        abs_db_path = (backend_dir / path_part).resolve().as_posix()
+        raw_url = f"sqlite:///{abs_db_path}"
+
 connect_args = {}
 if raw_url.startswith("sqlite"):
     connect_args["check_same_thread"] = False

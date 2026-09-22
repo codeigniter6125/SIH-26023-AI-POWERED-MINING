@@ -10,7 +10,8 @@ repo_root = str(Path(__file__).resolve().parent.parent.parent.parent.parent)
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 from app.models.schemas import (
     ReportGenerationRequest,
     GeneratedReportResponse,
@@ -18,13 +19,14 @@ from app.models.schemas import (
     BoundingBox
 )
 from app.core.crypto import generate_sha256, generate_citation_hash
-from app.db.seed_data import SEED_BOREHOLES
+from app.db.database import get_db, SessionLocal
+from app.db.models import BoreholeModel
 from agents.core.mining_calculators import MiningCalculator
 
 router = APIRouter()
 
 @router.post("/generate", response_model=GeneratedReportResponse, summary="Generate AI-Assisted Geological Report")
-async def generate_report(req: ReportGenerationRequest):
+async def generate_report(req: ReportGenerationRequest, db: Session = Depends(get_db)):
     """
     Generates structured, source-traceable reports across 4 ministerial modes:
     - Executive Summary
@@ -33,26 +35,37 @@ async def generate_report(req: ReportGenerationRequest):
     - Parliamentary Question (PQ) Fast-Response
 
     All metrics (seam thickness, coal grade, in-situ reserves, stripping ratios)
-    are dynamically calculated from matching boreholes or sector baselines for
-    req.coalfield and req.block, with genuine elapsed execution timing and authentic SHA-256 citations.
+    are dynamically calculated from matching boreholes queried from persistent SQLite storage
+    or sector baselines for req.coalfield and req.block, with genuine elapsed timing and authentic SHA-256 citations.
     """
     start_time = time.time()
+    close_db = False
+    if db is None or not hasattr(db, "query"):
+        db = SessionLocal()
+        close_db = True
 
-    target_coalfield = req.coalfield.strip() if req.coalfield else "North Karanpura"
-    target_block = req.block.strip() if req.block else "Block IV (Tandwa Sector)"
+    try:
+        target_coalfield = req.coalfield.strip() if req.coalfield else "North Karanpura"
+        target_block = req.block.strip() if req.block else "Block IV (Tandwa Sector)"
 
-    # 1. Look up matching boreholes in SEED_BOREHOLES
-    matching = [
-        b for b in SEED_BOREHOLES
-        if (target_coalfield.lower() in b.coalfield.lower() or b.coalfield.lower() in target_coalfield.lower())
-        and (target_block.lower() in b.sectorBlock.lower() or b.sectorBlock.lower() in target_block.lower())
-    ]
-    if not matching:
-        # Match by coalfield alone
-        matching = [
-            b for b in SEED_BOREHOLES
-            if target_coalfield.lower() in b.coalfield.lower() or b.coalfield.lower() in target_coalfield.lower()
+        # 1. Query matching boreholes from persistent database
+        db_boreholes = db.query(BoreholeModel).all()
+        matching_models = [
+            b for b in db_boreholes
+            if (target_coalfield.lower() in b.coalfield.lower() or b.coalfield.lower() in target_coalfield.lower())
+            and (target_block.lower() in b.sector_block.lower() or b.sector_block.lower() in target_block.lower())
         ]
+        if not matching_models:
+            # Match by coalfield alone
+            matching_models = [
+                b for b in db_boreholes
+                if target_coalfield.lower() in b.coalfield.lower() or b.coalfield.lower() in target_coalfield.lower()
+            ]
+
+        matching = [b.to_schema() for b in matching_models]
+    finally:
+        if close_db and db:
+            db.close()
 
     # 2. Derive geological metrics dynamically
     if matching:

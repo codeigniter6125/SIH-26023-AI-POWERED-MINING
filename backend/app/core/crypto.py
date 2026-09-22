@@ -1,12 +1,16 @@
 import hashlib
-from typing import Any
+from typing import Any, Union
 
-def generate_sha256(content: str) -> str:
+def generate_sha256(content: Union[str, bytes]) -> str:
     """
     Computes an authentic, 64-character hexadecimal SHA-256 hash
-    from arbitrary string content.
+    from arbitrary string or bytes content.
     """
-    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+    if isinstance(content, str):
+        payload = content.encode("utf-8")
+    else:
+        payload = content
+    return hashlib.sha256(payload).hexdigest()
 
 def generate_citation_hash(document_id: str, title: str, page: int, snippet: str) -> str:
     """
