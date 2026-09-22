@@ -216,6 +216,18 @@ export default function HomePage() {
     );
   };
 
+  const handleIngestNewBorehole = (record: BoreholeRecord) => {
+    setBoreholes((prev) => {
+      const idx = prev.findIndex((b) => b.boreholeId === record.boreholeId);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = record;
+        return copy;
+      }
+      return [record, ...prev];
+    });
+  };
+
   const pendingDiscrepancies = discrepancies.filter((d) => d.status === "UNDER_REVIEW").length;
 
   return (
@@ -256,6 +268,7 @@ export default function HomePage() {
       <IngestionDeskModal
         isOpen={isIngestionModalOpen}
         onClose={() => setIsIngestionModalOpen(false)}
+        onIngestSuccess={handleIngestNewBorehole}
       />
 
       {/* Statutory Government Footer */}

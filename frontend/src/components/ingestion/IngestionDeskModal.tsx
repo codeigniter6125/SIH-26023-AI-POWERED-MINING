@@ -13,10 +13,12 @@ import {
   Cpu,
   AlertCircle
 } from "lucide-react";
+import { BoreholeRecord, LithologicalInterval } from "@/types/geological";
 
 interface IngestionDeskModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onIngestSuccess?: (record: BoreholeRecord) => void;
 }
 
 interface TableRowItem {
@@ -81,6 +83,7 @@ const DEFAULT_ROWS: TableRowItem[] = [
 export const IngestionDeskModal: React.FC<IngestionDeskModalProps> = ({
   isOpen,
   onClose,
+  onIngestSuccess,
 }) => {
   const [selectedRow, setSelectedRow] = useState<number>(2); // Default to Seam IX row
   const [isProcessing, setIsProcessing] = useState(false);
@@ -88,6 +91,57 @@ export const IngestionDeskModal: React.FC<IngestionDeskModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [tableRows, setTableRows] = useState<TableRowItem[]>(DEFAULT_ROWS);
   const [isDragging, setIsDragging] = useState(false);
+
+  const handleCommitToDirectory = () => {
+    if (!onIngestSuccess) return;
+    const bhId = jobData.extractedBoreholes[0] || `BH-NEW-${Date.now().toString().slice(-4)}`;
+    const intervals: LithologicalInterval[] = tableRows.map(r => {
+      const isCoal = r.stratum.toLowerCase().includes("coal");
+      return {
+        fromDepthMeters: parseFloat(r.from) || 0,
+        toDepthMeters: parseFloat(r.to) || 0,
+        thicknessMeters: parseFloat(r.thickness) || 0,
+        lithologyDescription: r.stratum.replace("★ ", ""),
+        coreRecoveryPercent: parseFloat(r.recovery) || 90,
+        seamCode: isCoal ? "SEAM_IX" : "INTERBURDEN",
+      };
+    });
+    const targetSeam = intervals.find(i => i.seamCode === "SEAM_IX");
+    const newRecord: BoreholeRecord = {
+      boreholeId: bhId,
+      coalfield: "North Karanpura",
+      sectorBlock: "Block IV (Tandwa Sector)",
+      coordinates: {
+        latitude: "23° 48' 14.2\" N",
+        longitude: "85° 08' 28.5\" E",
+        collarElevationMsl: 479.5,
+        datum: "WGS84 / UTM Zone 45N"
+      },
+      totalDrilledDepthMeters: intervals.length > 0 ? intervals[intervals.length - 1].toDepthMeters : 150.0,
+      targetSeamThickness: targetSeam ? targetSeam.thicknessMeters : 8.42,
+      coalGrade: "G7",
+      proximateAssay: {
+        ashPercent: 23.4,
+        moisturePercent: 6.8,
+        grossCalorificValueKcal: 5420.0
+      },
+      statutoryClearance: "DGMS_CLEARED",
+      intervals: intervals,
+      evidenceTrail: [
+        {
+          documentId: jobData.jobId,
+          documentTitle: jobData.filename,
+          agency: "CMPDI",
+          year: 2026,
+          sha256Hash: "9f83c1b894101e4a32e18502f9c45a7d6e1b38a716bf6718d098e7235a90e311",
+          extractionConfidence: jobData.confidenceScore,
+          snippetText: `Extracted via ${jobData.ocrEngine} with ${intervals.length} validated lithological intervals.`
+        }
+      ]
+    };
+    onIngestSuccess(newRecord);
+    onClose();
+  };
 
   const [jobData, setJobData] = useState<JobState>({
     jobId: "JOB-OCR-9821",
@@ -470,13 +524,25 @@ export const IngestionDeskModal: React.FC<IngestionDeskModalProps> = ({
           <span className="text-xs text-slate-500">
             {uploadSuccess ? `✓ Successfully extracted via ${jobData.ocrEngine} and verified against domain rules.` : "Select row to review precise coordinate bounding-box."}
           </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 bg-[#0c2340] hover:bg-[#081729] text-white text-xs font-semibold rounded-md shadow"
-          >
-            Close Viewer
-          </button>
+          <div className="flex items-center space-x-2">
+            {uploadSuccess && onIngestSuccess && tableRows.length > 0 && (
+              <button
+                type="button"
+                onClick={handleCommitToDirectory}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-md shadow flex items-center space-x-1.5 transition-colors"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Commit to Directory</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-1.5 bg-[#0c2340] hover:bg-[#081729] text-white text-xs font-semibold rounded-md shadow transition-colors"
+            >
+              Close Viewer
+            </button>
+          </div>
         </div>
       </div>
     </div>
