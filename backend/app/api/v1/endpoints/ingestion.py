@@ -102,7 +102,7 @@ def list_ingestion_jobs(db: Session = Depends(get_db)):
 
 def _execute_pipeline_on_file(file_path: str, filename: str) -> IngestionJobResponse:
     """Synchronous pipeline worker executed via run_in_threadpool."""
-    job_id = f"JOB-OCR-{len(SEED_JOBS) + 9823}"
+    job_id = f"JOB-OCR-{uuid.uuid4().hex[:8].upper()}"
     if _pipeline is None:
         return IngestionJobResponse(
             jobId=job_id,

@@ -101,14 +101,36 @@ class CoreGeologicalAgent:
                 print(f"[CoreAgent] Gemini API unavailable ({e}), falling back to Domain RAG engine.")
                 return None
 
+    def _get_boreholes(self) -> List[Any]:
+        """Loads boreholes dynamically from persistent SQLite BoreholeModel."""
+        try:
+            from app.db.database import SessionLocal
+            from app.db.models import BoreholeModel
+            with SessionLocal() as db:
+                models = db.query(BoreholeModel).all()
+                if models:
+                    return [m.to_schema() for m in models]
+        except Exception:
+            try:
+                from backend.app.db.database import SessionLocal
+                from backend.app.db.models import BoreholeModel
+                with SessionLocal() as db:
+                    models = db.query(BoreholeModel).all()
+                    if models:
+                        return [m.to_schema() for m in models]
+            except Exception:
+                pass
+        return SEED_BOREHOLES
+
     def _analyze_borehole_statistics(self, metric: str) -> Dict[str, Any]:
-        """Computes live empirical statistics across the seeded exploration well registry."""
-        if not SEED_BOREHOLES:
+        """Computes live empirical statistics across the exploration well registry."""
+        boreholes = self._get_boreholes()
+        if not boreholes:
             return {}
 
         if metric == "ash":
-            values = [b.proximateAssay.ashPercent for b in SEED_BOREHOLES]
-            ids = [b.boreholeId for b in SEED_BOREHOLES]
+            values = [b.proximateAssay.ashPercent for b in boreholes if b.proximateAssay]
+            ids = [b.boreholeId for b in boreholes if b.proximateAssay]
             mean_val = round(sum(values) / len(values), 2)
             min_val = min(values)
             max_val = max(values)
@@ -125,7 +147,7 @@ class CoreGeologicalAgent:
                 "trend": f"Ash content ranges from {min_val}% ({min_bh}) to {max_val}% ({max_bh}), with sector mean of {mean_val}%. Increasing gradient observed towards the eastern boundary."
             }
         elif metric == "thickness":
-            values = [b.targetSeamThickness for b in SEED_BOREHOLES]
+            values = [b.targetSeamThickness for b in boreholes if b.targetSeamThickness is not None]
             mean_val = round(sum(values) / len(values), 2)
             return {
                 "metric": "Target Seam Thickness (m)",
@@ -136,7 +158,7 @@ class CoreGeologicalAgent:
                 "trend": f"Seam IX thickness averages {mean_val}m across {len(values)} boreholes (range: {min(values)}m to {max(values)}m)."
             }
         elif metric == "gcv":
-            values = [b.proximateAssay.grossCalorificValueKcal for b in SEED_BOREHOLES]
+            values = [b.proximateAssay.grossCalorificValueKcal for b in boreholes if b.proximateAssay]
             mean_val = round(sum(values) / len(values), 1)
             return {
                 "metric": "Gross Calorific Value (kcal/kg)",
@@ -347,8 +369,9 @@ class CoreGeologicalAgent:
         # ---------------------------------------------------------------------
         
         # A. Live Gemini AI Generation (if API key is configured)
+        active_boreholes = self._get_boreholes()
         corpus_summary = (
-            f"Available Boreholes: {len(SEED_BOREHOLES)} in North Karanpura Block IV (Tandwa). "
+            f"Available Boreholes: {len(active_boreholes)} in North Karanpura Block IV (Tandwa). "
             "Seams: Seam IX (mean 8.42m, Grade G7), Seam X (6.25m, Grade G7). "
             "Proved reserves: 14.80 MT (UNFC 111). All conform to DGMS CMR 2017 Reg 113."
         )
