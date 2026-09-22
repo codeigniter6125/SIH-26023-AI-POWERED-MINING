@@ -14,6 +14,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.api import api_router
+from app.db.database import init_db, SessionLocal
+from app.db.seed_db import seed_database
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -21,6 +23,16 @@ app = FastAPI(
     description="CMPDI Geological Intelligence & Exploration Records Portal (SIH26023)",
     version="2.1.0"
 )
+
+@app.on_event("startup")
+def startup_db_init():
+    """Initializes SQLite schema and idempotently seeds default records on startup."""
+    init_db()
+    db = SessionLocal()
+    try:
+        seed_database(db)
+    finally:
+        db.close()
 
 # Configure allowed origins explicitly (CORS spec disallows "*" with allow_credentials=True)
 allowed_origins = list(settings.BACKEND_CORS_ORIGINS)

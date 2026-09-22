@@ -91,17 +91,59 @@ def test_query_orchestrator_citations_and_policy():
     print("[PASS] General unscripted query returned grounded citations.")
 
 def test_borehole_pagination():
-    """Verify borehole pagination query parameters."""
-    import asyncio
-    from app.api.v1.endpoints.boreholes import list_boreholes
-    
-    # Test skip and limit
-    page_1 = asyncio.run(list_boreholes(skip=0, limit=2))
-    assert len(page_1) == 2, f"Expected 2 records, got {len(page_1)}"
-    page_2 = asyncio.run(list_boreholes(skip=2, limit=2))
-    assert len(page_2) == 2, f"Expected 2 records, got {len(page_2)}"
-    assert page_1[0].boreholeId != page_2[0].boreholeId, "Pages must not overlap"
-    print("[PASS] Borehole pagination verified.")
+    """Verify borehole pagination query parameters and structured filters via TestClient against persistent DB."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    with TestClient(app) as client:
+        # Test skip and limit
+        res_1 = client.get("/api/v1/boreholes/?skip=0&limit=2")
+        assert res_1.status_code == 200
+        page_1 = res_1.json()
+        assert len(page_1) == 2, f"Expected 2 records, got {len(page_1)}"
+
+        res_2 = client.get("/api/v1/boreholes/?skip=2&limit=2")
+        assert res_2.status_code == 200
+        page_2 = res_2.json()
+        assert len(page_2) == 2, f"Expected 2 records, got {len(page_2)}"
+        assert page_1[0]["boreholeId"] != page_2[0]["boreholeId"], "Pages must not overlap"
+
+        # Verify structured hybrid-SQL filters (minThickness, maxAsh)
+        res_filtered = client.get("/api/v1/boreholes/?minThickness=8.0&maxAsh=25.0")
+        assert res_filtered.status_code == 200
+        filtered = res_filtered.json()
+        assert len(filtered) >= 1, "Should return filtered boreholes"
+        assert all(b["targetSeamThickness"] >= 8.0 for b in filtered)
+        assert all(b["proximateAssay"]["ashPercent"] <= 25.0 for b in filtered)
+    print("[PASS] Borehole pagination & hybrid-SQL filtering verified.")
+
+def test_database_persistence_and_approval():
+    """Verify discrepancy approval persists to SQLite database across sessions."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    with TestClient(app) as client:
+        # Approve discrepancy DISC-094
+        approve_resp = client.post("/api/v1/discrepancies/DISC-094/approve")
+        assert approve_resp.status_code == 200, f"Approve failed: {approve_resp.text}"
+        data = approve_resp.json()
+        assert data["discrepancy"]["status"] == "RESOLVED"
+        assert data["discrepancy"]["verifiedThicknessMeters"] == 8.42
+
+        # Verify persistent read from DB
+        list_resp = client.get("/api/v1/discrepancies/")
+        assert list_resp.status_code == 200
+        disc_list = list_resp.json()
+        disc_94 = next(d for d in disc_list if d["discrepancyId"] == "DISC-094")
+        assert disc_94["status"] == "RESOLVED", "Status must persist as RESOLVED in DB"
+
+        # Verify corresponding borehole clearance status was updated in DB
+        bh_resp = client.get("/api/v1/boreholes/BH-NK-094")
+        assert bh_resp.status_code == 200
+        bh_data = bh_resp.json()
+        assert bh_data["statutoryClearance"] == "DGMS_CLEARED"
+        assert bh_data["targetSeamThickness"] == 8.42
+    print("[PASS] Real database persistence and discrepancy approval verified.")
 
 def test_dynamic_reports():
     """Verify dynamic report generation across modes, locations, honest timing, and citations."""
@@ -257,6 +299,7 @@ if __name__ == "__main__":
     test_borehole_table_parser()
     test_query_orchestrator_citations_and_policy()
     test_borehole_pagination()
+    test_database_persistence_and_approval()
     test_dynamic_reports()
     test_ingestion_pipeline_and_upload()
     print("All backend tests passed successfully!")

@@ -28,7 +28,7 @@ try:
         BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
         # Database & Storage
-        DATABASE_URL: str = "sqlite+aiosqlite:///./geomine.db"
+        DATABASE_URL: str = "sqlite:///./geomine.db"
         CHROMA_PERSIST_DIRECTORY: str = "./chroma_db"
         STORAGE_DIR: str = "./uploads"
 
