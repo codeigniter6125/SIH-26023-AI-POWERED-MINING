@@ -71,6 +71,11 @@ class GeologicalOCRProcessor:
             scale = max_dim / float(max(w, h))
             new_w, new_h = int(w * scale), int(h * scale)
             image = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        elif max(w, h) < 1000 and max(w, h) > 0:
+            upscale = min(3.0, 1200.0 / float(max(w, h)))
+            if upscale > 1.2:
+                new_w, new_h = int(w * upscale), int(h * upscale)
+                image = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
         # Enhance contrast slightly for faint geological print
         enhancer = ImageEnhance.Contrast(image)
