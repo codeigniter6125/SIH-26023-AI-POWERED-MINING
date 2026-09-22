@@ -170,6 +170,69 @@ def test_dynamic_reports():
     assert len(rep_hist.findingsTable) == 3, "Historical trend must show 3 multi-decadal campaigns"
     print("[PASS] Statutory Audit and Historical Trend modes verified.")
 
+def test_ingestion_pipeline_and_upload():
+    """Verify real Google Vision OCR processor, pipeline routing, and upload endpoint."""
+    import os, tempfile, io
+    from PIL import Image, ImageDraw
+    from ingestion.ocr.ocr_processor import GeologicalOCRProcessor
+    from ingestion.pipeline import GeologicalIngestionPipeline
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    # 1. Test OCR Processor properties and fallback resilience
+    p = GeologicalOCRProcessor()
+    assert hasattr(p, "vision_api_key"), "Must expose vision_api_key attribute"
+    assert hasattr(p, "gemini_api_key"), "Must expose gemini_api_key attribute"
+    table_rows = p.extract_table_rows_with_bboxes(None)
+    assert len(table_rows) >= 3, "Must extract table rows"
+    assert "from_m" in table_rows[0] and "to_m" in table_rows[0]
+    assert "bbox" in table_rows[0] and len(table_rows[0]["bbox"]) == 4
+
+    # 2. Test Pipeline with synthetic litholog plate image
+    pipe = GeologicalIngestionPipeline()
+    test_img = Image.new("RGB", (500, 150), color=(255, 255, 255))
+    draw = ImageDraw.Draw(test_img)
+    draw.text((10, 10), "BOREHOLE NO: BH-NK-094", fill=(0, 0, 0))
+    draw.text((10, 40), "0.00 - 42.10m Alluvium and weathered zone 62.5%", fill=(0, 0, 0))
+    draw.text((10, 70), "42.10 - 114.28m Barakar Formation Sandstone 88.4%", fill=(0, 0, 0))
+    draw.text((10, 100), "114.28 - 122.70m Coal Seam IX (Grade G7) 96.8%", fill=(0, 0, 0))
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        test_img.save(tmp.name, format="PNG")
+        tmp_path = tmp.name
+
+    try:
+        res = pipe.process_document(tmp_path)
+        assert res["status"] == "EXTRACTED"
+        assert res["confidence_score"] > 0.0
+        assert len(res["extracted_boreholes"]) > 0
+        assert len(res["extracted_intervals"]) >= 3
+        assert len(res["bounding_boxes"]) >= 3
+        assert res["ocr_engine_used"] is not None
+        print("[PASS] Geological ingestion pipeline processing verified.")
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+    # 3. Test HTTP upload endpoint via TestClient
+    client = TestClient(app)
+    img_buf = io.BytesIO()
+    test_img.save(img_buf, format="PNG")
+    img_bytes = img_buf.getvalue()
+
+    upload_resp = client.post(
+        "/api/v1/ingestion/upload",
+        files={"file": ("BH_NK_094_Scanned_Litholog.png", img_bytes, "image/png")}
+    )
+    assert upload_resp.status_code == 200, f"Upload returned {upload_resp.status_code}: {upload_resp.text}"
+    job_data = upload_resp.json()
+    assert job_data["status"] == "EXTRACTED"
+    assert job_data["confidenceScore"] > 0.0
+    assert len(job_data["boundingBoxes"]) > 0
+    assert job_data["ocrEngine"] is not None
+    assert "BH-NK-094" in job_data["extractedBoreholes"] or len(job_data["extractedBoreholes"]) > 0
+    print("[PASS] Ingestion /upload endpoint verified end-to-end.")
+
 if __name__ == "__main__":
     test_seed_data_integrity()
     test_discrepancy_arithmetic()
@@ -178,4 +241,5 @@ if __name__ == "__main__":
     test_query_orchestrator_citations_and_policy()
     test_borehole_pagination()
     test_dynamic_reports()
+    test_ingestion_pipeline_and_upload()
     print("All backend tests passed successfully!")

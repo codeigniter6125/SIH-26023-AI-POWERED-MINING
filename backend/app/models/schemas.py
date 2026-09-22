@@ -125,6 +125,9 @@ class IngestionJobResponse(BaseModel):
     extractedTables: int
     extractedBoreholes: List[str] = []
     boundingBoxes: List[BoundingBox] = []
+    ocrEngine: Optional[str] = "Google Cloud Vision"
+    extractedIntervals: Optional[List[Dict[str, Any]]] = None
+    warnings: Optional[List[str]] = None
 
 # ---------------------------------------------------------
 # Conversational / AI Query Schemas
