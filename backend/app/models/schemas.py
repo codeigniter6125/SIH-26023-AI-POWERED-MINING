@@ -120,7 +120,7 @@ class IngestionJobResponse(BaseModel):
     jobId: str
     filename: str
     pageCount: int
-    status: Literal['PENDING', 'PROCESSING', 'EXTRACTED', 'VERIFIED']
+    status: Literal['PENDING', 'PROCESSING', 'EXTRACTED', 'VERIFIED', 'FAILED', 'NO_TEXT_DETECTED']
     confidenceScore: float
     extractedTables: int
     extractedBoreholes: List[str] = []

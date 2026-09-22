@@ -179,17 +179,34 @@ def test_ingestion_pipeline_and_upload():
     from fastapi.testclient import TestClient
     from app.main import app
 
-    # 1. Test OCR Processor properties and fallback resilience
+    # 1. Test OCR Processor properties and honest failure on blank input
     p = GeologicalOCRProcessor()
     assert hasattr(p, "vision_api_key"), "Must expose vision_api_key attribute"
     assert hasattr(p, "gemini_api_key"), "Must expose gemini_api_key attribute"
-    table_rows = p.extract_table_rows_with_bboxes(None)
-    assert len(table_rows) >= 3, "Must extract table rows"
-    assert "from_m" in table_rows[0] and "to_m" in table_rows[0]
-    assert "bbox" in table_rows[0] and len(table_rows[0]["bbox"]) == 4
+    blank_rows = p.extract_table_rows_with_bboxes(None)
+    assert len(blank_rows) == 0, "Blank/empty input must return 0 rows (no fabrication)"
+    assert p.last_confidence_score == 0.0, "Blank/empty input must carry 0.0 confidence"
 
-    # 2. Test Pipeline with synthetic litholog plate image
+    # 2. Test Pipeline with blank image — MUST NOT fabricate borehole or intervals
     pipe = GeologicalIngestionPipeline()
+    blank_img = Image.new("RGB", (400, 120), color=(255, 255, 255))
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_blank:
+        blank_img.save(tmp_blank.name, format="PNG")
+        tmp_blank_path = tmp_blank.name
+
+    try:
+        blank_res = pipe.process_document(tmp_blank_path)
+        assert blank_res["status"] == "NO_TEXT_DETECTED", f"Expected NO_TEXT_DETECTED, got {blank_res['status']}"
+        assert blank_res["confidence_score"] == 0.0, f"Expected 0.0 confidence, got {blank_res['confidence_score']}"
+        assert len(blank_res["extracted_intervals"]) == 0, "Must not extract intervals from blank image"
+        assert len(blank_res["extracted_boreholes"]) == 0, "Must not fabricate borehole ID from blank image"
+        assert len(blank_res["bounding_boxes"]) == 0, "Must not fabricate bounding boxes from blank image"
+        print("[PASS] Honest blank image rejection verified (no fabrication).")
+    finally:
+        if os.path.exists(tmp_blank_path):
+            os.remove(tmp_blank_path)
+
+    # 3. Test Pipeline with synthetic litholog plate image containing real text
     test_img = Image.new("RGB", (500, 150), color=(255, 255, 255))
     draw = ImageDraw.Draw(test_img)
     draw.text((10, 10), "BOREHOLE NO: BH-NK-094", fill=(0, 0, 0))
@@ -214,7 +231,7 @@ def test_ingestion_pipeline_and_upload():
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-    # 3. Test HTTP upload endpoint via TestClient
+    # 4. Test HTTP upload endpoint via TestClient
     client = TestClient(app)
     img_buf = io.BytesIO()
     test_img.save(img_buf, format="PNG")

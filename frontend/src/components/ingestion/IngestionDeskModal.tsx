@@ -132,17 +132,19 @@ export const IngestionDeskModal: React.FC<IngestionDeskModalProps> = ({
       }
 
       const data = await res.json();
+      const hasIntervals = data.extractedIntervals && data.extractedIntervals.length > 0;
+
       setJobData({
         jobId: data.jobId || `JOB-OCR-${Date.now().toString().slice(-4)}`,
         filename: data.filename || file.name,
         pageCount: data.pageCount || 1,
-        status: data.status || "EXTRACTED",
-        confidenceScore: data.confidenceScore || 0.965,
+        status: data.status || (hasIntervals ? "EXTRACTED" : "NO_TEXT_DETECTED"),
+        confidenceScore: data.confidenceScore || 0.0,
         ocrEngine: data.ocrEngine || "Google Vision OCR",
-        extractedBoreholes: data.extractedBoreholes || ["BH-NK-094"],
+        extractedBoreholes: data.extractedBoreholes || [],
       });
 
-      if (data.extractedIntervals && data.extractedIntervals.length > 0) {
+      if (hasIntervals) {
         const mapped: TableRowItem[] = data.extractedIntervals.map((it: any, idx: number) => {
           const fromVal = typeof it.fromDepthMeters === "number" ? it.fromDepthMeters.toFixed(2) : String(it.fromDepthMeters || "0.00");
           const toVal = typeof it.toDepthMeters === "number" ? it.toDepthMeters.toFixed(2) : String(it.toDepthMeters || "0.00");
@@ -166,23 +168,31 @@ export const IngestionDeskModal: React.FC<IngestionDeskModalProps> = ({
         });
 
         setTableRows(mapped);
-        // Find coal seam or default to first
         const coalIdx = mapped.findIndex(r => r.stratum.startsWith("★"));
         setSelectedRow(coalIdx >= 0 ? coalIdx : 0);
+        setUploadSuccess(true);
+      } else {
+        setTableRows([]);
+        setSelectedRow(-1);
+        setUploadSuccess(false);
+        setErrorMessage(
+          data.warnings?.[0] || "No textual or lithological elements detected in this document (Confidence: 0.0%)."
+        );
       }
-
-      setUploadSuccess(true);
     } catch (err: any) {
-      console.warn("Real upload endpoint not responding or offline, falling back to client simulation:", err);
-      // Fallback graceful handling so demo UI doesn't freeze
+      console.warn("Upload failed:", err);
       setJobData(prev => ({
         ...prev,
         filename: file.name,
-        status: "EXTRACTED",
-        confidenceScore: 0.972,
-        ocrEngine: "Google Vision Resilient Engine"
+        status: "FAILED",
+        confidenceScore: 0.0,
+        ocrEngine: "none",
+        extractedBoreholes: []
       }));
-      setUploadSuccess(true);
+      setTableRows([]);
+      setSelectedRow(-1);
+      setUploadSuccess(false);
+      setErrorMessage(`Upload error: ${err.message || "Failed to process document"}`);
     } finally {
       setIsProcessing(false);
     }
@@ -297,7 +307,13 @@ export const IngestionDeskModal: React.FC<IngestionDeskModalProps> = ({
                   </div>
                 </div>
               </div>
-              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold text-[10px] uppercase tracking-wide">
+              <span className={`px-2 py-0.5 rounded font-semibold text-[10px] uppercase tracking-wide ${
+                jobData.status === "EXTRACTED" || jobData.status === "VERIFIED"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : jobData.status === "NO_TEXT_DETECTED"
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-rose-100 text-rose-800"
+              }`}>
                 {jobData.status}
               </span>
             </div>
@@ -308,7 +324,9 @@ export const IngestionDeskModal: React.FC<IngestionDeskModalProps> = ({
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">
                   Extracted Lithological Log Intervals
                 </h4>
-                <span className="text-[10px] text-slate-500">Click row to highlight bbox</span>
+                <span className="text-[10px] text-slate-500">
+                  {tableRows.length > 0 ? "Click row to highlight bbox" : "0 intervals"}
+                </span>
               </div>
 
               <div className="border border-[#d9e2ec] rounded-md overflow-hidden text-xs">
@@ -322,26 +340,34 @@ export const IngestionDeskModal: React.FC<IngestionDeskModalProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {tableRows.map((row) => (
-                      <tr
-                        key={row.id}
-                        onClick={() => setSelectedRow(row.id)}
-                        className={`cursor-pointer transition-colors ${
-                          selectedRow === row.id
-                            ? "bg-amber-100 text-[#0c2340] font-bold"
-                            : "hover:bg-slate-50 text-slate-800"
-                        }`}
-                      >
-                        <td className="py-2 px-3 font-mono text-[11px]">{row.from} - {row.to}</td>
-                        <td className="py-2 px-3">{row.thickness}m</td>
-                        <td className="py-2 px-3 truncate max-w-[160px]">{row.stratum}</td>
-                        <td className="py-2 px-3 text-right">
-                          <button className="text-[10px] text-blue-700 underline font-normal">
-                            View Box
-                          </button>
+                    {tableRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-8 px-4 text-center text-slate-400 italic text-xs">
+                          No lithological log intervals detected in this document.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      tableRows.map((row) => (
+                        <tr
+                          key={row.id}
+                          onClick={() => setSelectedRow(row.id)}
+                          className={`cursor-pointer transition-colors ${
+                            selectedRow === row.id
+                              ? "bg-amber-100 text-[#0c2340] font-bold"
+                              : "hover:bg-slate-50 text-slate-800"
+                          }`}
+                        >
+                          <td className="py-2 px-3 font-mono text-[11px]">{row.from} - {row.to}</td>
+                          <td className="py-2 px-3">{row.thickness}m</td>
+                          <td className="py-2 px-3 truncate max-w-[160px]">{row.stratum}</td>
+                          <td className="py-2 px-3 text-right">
+                            <button className="text-[10px] text-blue-700 underline font-normal">
+                              View Box
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -354,69 +380,81 @@ export const IngestionDeskModal: React.FC<IngestionDeskModalProps> = ({
               <div className="flex items-center space-x-2">
                 <Eye className="w-4 h-4 text-amber-400" />
                 <span className="text-xs font-bold text-slate-200">
-                  Scanned Document Canvas ({jobData.extractedBoreholes[0] || "Borehole Log"} · Plate III)
+                  Scanned Document Canvas ({jobData.extractedBoreholes[0] || "No Borehole Detected"} · Plate III)
                 </span>
               </div>
               <span className="text-[11px] font-mono text-slate-400">
                 {tableRows[selectedRow] 
                   ? `Coords: [x: ${tableRows[selectedRow].bbox.x}%, y: ${tableRows[selectedRow].bbox.y}%]` 
-                  : "Coordinates: Active"}
+                  : "Coordinates: None"}
               </span>
             </div>
 
-            {/* Simulated Scanned Page with Real-Time Bounding Box Canvas Overlay */}
+            {/* Scanned Page with Real-Time Bounding Box Canvas Overlay */}
             <div className="relative my-4 flex-1 bg-slate-100 text-slate-900 p-6 rounded shadow-inner overflow-hidden font-serif border border-slate-600">
-              {/* Document Header Text Simulation */}
-              <div className="text-center border-b border-slate-400 pb-2 mb-4">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                  CENTRAL MINE PLANNING &amp; DESIGN INSTITUTE LIMITED
+              {tableRows.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-500 space-y-2">
+                  <FileText className="w-10 h-10 text-slate-400 mx-auto opacity-40" />
+                  <div className="font-semibold text-xs text-slate-700">No Bounding Boxes Detected</div>
+                  <p className="text-[10px] text-slate-500 max-w-xs">
+                    This document was evaluated by {jobData.ocrEngine || "OCR Engine"} but contains no verifiable lithological tables or intervals (Confidence: {(jobData.confidenceScore * 100).toFixed(1)}%).
+                  </p>
                 </div>
-                <div className="text-[9px] text-slate-500">
-                  REGIONAL INSTITUTE-II, RANCHI • GEOLOGICAL ASSESSMENT REPORT ({jobData.extractedBoreholes[0] || "BLOCK IV"})
-                </div>
-              </div>
-
-              <div className="text-[10px] space-y-2 text-slate-700">
-                <p>
-                  <strong>Table 3.4:</strong> Subsurface Lithological Intervals intercepted in Borehole <strong>{jobData.extractedBoreholes[0] || "BH-NK-094"}</strong>,
-                  Tandwa Sector. Wireline logging executed with dual-detector gamma ray &amp; sonic caliper tool.
-                </p>
-
-                {/* Tabular Graphic */}
-                <div className="space-y-1 pt-2 font-mono text-[9px]">
-                  <div className="text-slate-400 border-b border-slate-300 pb-1 flex justify-between font-bold">
-                    <span>DEPTH (FROM - TO)</span>
-                    <span>THICKNESS</span>
-                    <span>STRATA DESCRIPTION</span>
-                  </div>
-                  {tableRows.slice(0, 4).map((r, i) => (
-                    <div 
-                      key={r.id} 
-                      className={`flex justify-between py-0.5 ${r.stratum.includes("★") ? "font-bold text-slate-900" : ""}`}
-                    >
-                      <span>{r.from}m - {r.to}m</span>
-                      <span>{r.thickness}m</span>
-                      <span className="truncate max-w-[180px]">{r.stratum.replace("★ ", "")}</span>
+              ) : (
+                <>
+                  {/* Document Header Text Simulation */}
+                  <div className="text-center border-b border-slate-400 pb-2 mb-4">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                      CENTRAL MINE PLANNING &amp; DESIGN INSTITUTE LIMITED
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div className="text-[9px] text-slate-500">
+                      REGIONAL INSTITUTE-II, RANCHI • GEOLOGICAL ASSESSMENT REPORT ({jobData.extractedBoreholes[0] || "BLOCK IV"})
+                    </div>
+                  </div>
 
-              {/* Dynamic Coordinate Bounding Box Overlay */}
-              {tableRows[selectedRow] && (
-                <div
-                  className="absolute border-2 border-amber-500 bg-amber-500/20 rounded shadow-md pointer-events-none transition-all duration-300"
-                  style={{
-                    left: `${tableRows[selectedRow].bbox.x}%`,
-                    top: `${tableRows[selectedRow].bbox.y}%`,
-                    width: `${tableRows[selectedRow].bbox.w}%`,
-                    height: `${tableRows[selectedRow].bbox.h}%`,
-                  }}
-                >
-                  <span className="absolute -top-4 left-0 bg-amber-500 text-black text-[9px] font-mono font-bold px-1 rounded">
-                    BBOX: Row {selectedRow + 1}
-                  </span>
-                </div>
+                  <div className="text-[10px] space-y-2 text-slate-700">
+                    <p>
+                      <strong>Table 3.4:</strong> Subsurface Lithological Intervals intercepted in Borehole <strong>{jobData.extractedBoreholes[0] || "BH-NK-094"}</strong>,
+                      Tandwa Sector. Wireline logging executed with dual-detector gamma ray &amp; sonic caliper tool.
+                    </p>
+
+                    {/* Tabular Graphic */}
+                    <div className="space-y-1 pt-2 font-mono text-[9px]">
+                      <div className="text-slate-400 border-b border-slate-300 pb-1 flex justify-between font-bold">
+                        <span>DEPTH (FROM - TO)</span>
+                        <span>THICKNESS</span>
+                        <span>STRATA DESCRIPTION</span>
+                      </div>
+                      {tableRows.slice(0, 4).map((r, i) => (
+                        <div 
+                          key={r.id} 
+                          className={`flex justify-between py-0.5 ${r.stratum.includes("★") ? "font-bold text-slate-900" : ""}`}
+                        >
+                          <span>{r.from}m - {r.to}m</span>
+                          <span>{r.thickness}m</span>
+                          <span className="truncate max-w-[180px]">{r.stratum.replace("★ ", "")}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Dynamic Coordinate Bounding Box Overlay */}
+                  {tableRows[selectedRow] && (
+                    <div
+                      className="absolute border-2 border-amber-500 bg-amber-500/20 rounded shadow-md pointer-events-none transition-all duration-300"
+                      style={{
+                        left: `${tableRows[selectedRow].bbox.x}%`,
+                        top: `${tableRows[selectedRow].bbox.y}%`,
+                        width: `${tableRows[selectedRow].bbox.w}%`,
+                        height: `${tableRows[selectedRow].bbox.h}%`,
+                      }}
+                    >
+                      <span className="absolute -top-4 left-0 bg-amber-500 text-black text-[9px] font-mono font-bold px-1 rounded">
+                        BBOX: Row {selectedRow + 1}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 

@@ -70,43 +70,46 @@ def _execute_pipeline_on_file(file_path: str, filename: str) -> IngestionJobResp
             jobId=job_id,
             filename=filename,
             pageCount=1,
-            status="EXTRACTED",
-            confidenceScore=0.965,
-            extractedTables=1,
-            extractedBoreholes=["BH-NK-094"],
-            boundingBoxes=[
-                BoundingBox(x=120.0, y=340.0, width=420.0, height=18.0, pageNumber=1)
-            ],
-            ocrEngine="Google Cloud Vision"
+            status="FAILED",
+            confidenceScore=0.0,
+            extractedTables=0,
+            extractedBoreholes=[],
+            boundingBoxes=[],
+            ocrEngine="none",
+            warnings=["Ingestion pipeline is uninitialized."]
         )
 
     try:
         res = _pipeline.process_document(file_path)
         bboxes = [
             BoundingBox(
-                x=float(b.get("x", 120.0)),
-                y=float(b.get("y", 340.0)),
-                width=float(b.get("width", 420.0)),
-                height=float(b.get("height", 18.0)),
+                x=float(b.get("x", 0.0)),
+                y=float(b.get("y", 0.0)),
+                width=float(b.get("width", 0.0)),
+                height=float(b.get("height", 0.0)),
                 pageNumber=int(b.get("pageNumber", 1))
             )
             for b in res.get("bounding_boxes", [])
         ]
-        if not bboxes:
-            bboxes = [BoundingBox(x=120.0, y=340.0, width=420.0, height=18.0, pageNumber=1)]
+
+        status = res.get("status", "NO_TEXT_DETECTED")
+        confidence = float(res.get("confidence_score", 0.0))
+        boreholes = res.get("extracted_boreholes", [])
+        tables = int(res.get("tables_found", 0))
+        engine = res.get("ocr_engine_used", "none")
 
         return IngestionJobResponse(
             jobId=job_id,
             filename=filename,
             pageCount=res.get("page_count", 1),
-            status=res.get("status", "EXTRACTED"),
-            confidenceScore=res.get("confidence_score", 0.984),
-            extractedTables=res.get("tables_found", 1),
-            extractedBoreholes=res.get("extracted_boreholes", ["BH-NK-094"]),
+            status=status,
+            confidenceScore=confidence,
+            extractedTables=tables,
+            extractedBoreholes=boreholes,
             boundingBoxes=bboxes,
-            ocrEngine=res.get("ocr_engine_used", "Google Cloud Vision"),
-            extractedIntervals=res.get("extracted_intervals"),
-            warnings=res.get("warnings")
+            ocrEngine=engine,
+            extractedIntervals=res.get("extracted_intervals", []),
+            warnings=res.get("warnings", [])
         )
     except Exception as err:
         logger.error(f"Ingestion pipeline processing error: {err}")
@@ -114,12 +117,12 @@ def _execute_pipeline_on_file(file_path: str, filename: str) -> IngestionJobResp
             jobId=job_id,
             filename=filename,
             pageCount=1,
-            status="PENDING",
-            confidenceScore=0.50,
+            status="FAILED",
+            confidenceScore=0.0,
             extractedTables=0,
             extractedBoreholes=[],
             boundingBoxes=[],
-            ocrEngine="Google Cloud Vision (Error Fallback)",
+            ocrEngine="none",
             warnings=[f"Pipeline processing failed: {str(err)}"]
         )
 

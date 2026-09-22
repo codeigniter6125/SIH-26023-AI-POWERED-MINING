@@ -43,6 +43,8 @@ class GeologicalOCRProcessor:
         self.gemini_api_key = os.getenv("GEMINI_API_KEY", "").strip()
         self.last_engine_used: str = "none"
         self.last_confidence_score: float = 0.0
+        self.last_full_text: str = ""
+        self.last_borehole_id: Optional[str] = None
         self.last_warnings: List[str] = []
 
     def preprocess_image(self, image: Image.Image) -> Image.Image:
@@ -162,6 +164,10 @@ class GeologicalOCRProcessor:
                                 current_line_words = []
                                 current_vertices = []
 
+            self.last_full_text = full_text
+            bh_match = re.search(r'\b(BH-[A-Z]{1,4}-\d{2,4}[A-Z]?|CMPDI-[A-Z]{1,4}-\d{2,4}|DH-\d{2,4}|MECL-[A-Z0-9-]+)\b', full_text, re.IGNORECASE)
+            self.last_borehole_id = bh_match.group(1).upper() if bh_match else None
+
             mean_conf = round(sum(confidences) / max(len(confidences), 1), 3) if confidences else 0.965
             return {
                 "success": True,
@@ -188,21 +194,19 @@ class GeologicalOCRProcessor:
             client = genai.Client(api_key=self.gemini_api_key)
 
             prompt = (
-                "You are an expert geological document and borehole log parser for CMPDI/MECL reports.\n"
-                "Analyze this scanned geological plate / borehole table image.\n"
-                "Extract all borehole IDs (e.g. BH-NK-094, CMPDI-DH-104) and all lithology interval rows.\n"
-                "Provide physical pixel bounding boxes [x, y, width, height] for each table row.\n"
+                "You are an expert geological document and borehole log parser for CMPDI/MECL exploration archives.\n"
+                "Analyze this image carefully.\n"
+                "CRITICAL MANDATE: If this image is blank, white, corrupt, or does not contain any geological borehole or stratigraphic lithology tables, you MUST return: {\"borehole_id\": null, \"confidence\": 0.0, \"intervals\": [], \"raw_text\": \"\"}.\n"
+                "NEVER fabricate, guess, or hallucinate borehole identifiers, depths, or strata from images lacking tabular geological data.\n"
+                "If the image DOES contain geological log tables, extract all borehole IDs (e.g. BH-NK-094, CMPDI-DH-104) and all lithology interval rows with physical pixel bounding boxes [x, y, width, height].\n"
                 "Respond ONLY with a valid JSON object matching this schema:\n"
                 "{\n"
-                '  "borehole_id": "BH-NK-094",\n'
-                '  "confidence": 0.97,\n'
+                '  "borehole_id": "string or null",\n'
+                '  "confidence": 0.0,\n'
                 '  "intervals": [\n'
-                '    {"from_m": "0.00", "to_m": "42.10", "stratum": "Alluvium and weathered zone", "recovery_pct": "62.5", "bbox": [120.0, 340.0, 420.0, 18.0]},\n'
-                '    {"from_m": "42.10", "to_m": "114.28", "stratum": "Barakar Sandstone", "recovery_pct": "88.4", "bbox": [120.0, 362.0, 420.0, 18.0]},\n'
-                '    {"from_m": "114.28", "to_m": "122.70", "stratum": "Coal Seam IX (Target Horizon)", "recovery_pct": "96.8", "bbox": [120.0, 384.0, 420.0, 22.0]},\n'
-                '    {"from_m": "122.70", "to_m": "154.10", "stratum": "Interburden Hard Siliceous Shale", "recovery_pct": "92.1", "bbox": [120.0, 410.0, 420.0, 18.0]}\n'
+                '    {"from_m": "0.00", "to_m": "42.10", "stratum": "Alluvium and weathered zone", "recovery_pct": "62.5", "bbox": [120.0, 340.0, 420.0, 18.0]}\n'
                 "  ],\n"
-                '  "raw_text": "all transcribed text"\n'
+                '  "raw_text": "all transcribed text or empty string"\n'
                 "}"
             )
 
@@ -232,9 +236,23 @@ class GeologicalOCRProcessor:
 
             parsed_data = json.loads(raw_text)
             intervals = parsed_data.get("intervals", [])
-            conf = float(parsed_data.get("confidence", 0.975))
-            borehole_id = parsed_data.get("borehole_id", "BH-NK-094")
+            borehole_id = parsed_data.get("borehole_id")
+            
+            if not intervals:
+                self.last_full_text = ""
+                self.last_borehole_id = None
+                return {
+                    "success": True,
+                    "engine": "Google Gemini Vision",
+                    "borehole_id": None,
+                    "intervals": [],
+                    "confidence": 0.0,
+                    "raw_text": parsed_data.get("raw_text", "")
+                }
 
+            self.last_full_text = parsed_data.get("raw_text", "")
+            self.last_borehole_id = borehole_id
+            conf = float(parsed_data.get("confidence", 0.95))
             return {
                 "success": True,
                 "engine": "Google Gemini Vision",
@@ -308,13 +326,14 @@ class GeologicalOCRProcessor:
         Matches depth interval patterns (e.g. '0.00 - 42.10m Alluvium 62.5%').
         """
         rows = []
-        depth_pattern = re.compile(r'(\d+(?:\.\d+)?)\s*(?:-|to|–)\s*(\d+(?:\.\d+)?)\s*(?:m|meters)?\s*(.*)', re.IGNORECASE)
+        depth_pattern = re.compile(r'(\d+(?:\.\d+)?)\s*(?:-|to|–|\s+)\s*(\d+(?:\.\d+)?)\s*(?:m|meters)?\s+([A-Za-z].*)', re.IGNORECASE)
+        alt_pattern = re.compile(r'(\d+(?:\.\d+)?)\s*(?:-|to|–)\s*(\d+(?:\.\d+)?)\s*(?:m|meters)?\s*(.*)', re.IGNORECASE)
         recovery_pattern = re.compile(r'(\d+(?:\.\d+)?)\s*%', re.IGNORECASE)
 
         for line in lines:
             text = line.get("text", "")
             bbox = line.get("bbox", [100.0, 200.0, 350.0, 20.0])
-            m = depth_pattern.search(text)
+            m = depth_pattern.search(text) or alt_pattern.search(text)
             if m:
                 from_m, to_m, rest = m.group(1), m.group(2), m.group(3).strip()
                 rec_match = recovery_pattern.search(rest)
@@ -363,21 +382,11 @@ class GeologicalOCRProcessor:
             self.last_confidence_score = tess["confidence"]
             return tess["lines"]
 
-        # 4. Reliable Seed fallback (e.g. for offline demo testing)
-        self.last_engine_used = "Geological Domain Baseline"
-        self.last_confidence_score = 0.984
-        return [
-            {
-                "text": "BOREHOLE NO: BH-NK-094 (Tandwa Sector)",
-                "bbox": [50.0, 100.0, 250.0, 20.0],
-                "confidence": 0.984
-            },
-            {
-                "text": "SEAM IX (Target Coal Horizon — Grade G7)",
-                "bbox": [120.0, 384.0, 420.0, 22.0],
-                "confidence": 0.984
-            }
-        ]
+        # 4. Honest failure — never fabricate extraction results
+        self.last_engine_used = "none"
+        self.last_confidence_score = 0.0
+        logger.warning("All OCR engines failed or unavailable — no text could be extracted.")
+        return []
 
     def extract_table_rows_with_bboxes(self, image: Optional[Image.Image] = None) -> List[Dict[str, Any]]:
         """
@@ -410,39 +419,11 @@ class GeologicalOCRProcessor:
                     self.last_confidence_score = tess["confidence"]
                     return rows
 
-        # 4. Domain Certified Seed Baseline
-        self.last_engine_used = "Google Vision Certified Standard"
-        self.last_confidence_score = 0.984
-        return [
-            {
-                "from_m": "0.00",
-                "to_m": "42.10",
-                "stratum": "Alluvium and weathered zone",
-                "recovery_pct": "62.5",
-                "bbox": [120.0, 340.0, 420.0, 18.0]
-            },
-            {
-                "from_m": "42.10",
-                "to_m": "114.28",
-                "stratum": "Barakar Formation Sandstone",
-                "recovery_pct": "88.4",
-                "bbox": [120.0, 362.0, 420.0, 18.0]
-            },
-            {
-                "from_m": "114.28",
-                "to_m": "122.70",
-                "stratum": "Coal Seam IX (Grade G7 Target Horizon)",
-                "recovery_pct": "96.8",
-                "bbox": [120.0, 384.0, 420.0, 22.0]
-            },
-            {
-                "from_m": "122.70",
-                "to_m": "154.10",
-                "stratum": "Interburden Hard Siliceous Shale",
-                "recovery_pct": "92.1",
-                "bbox": [120.0, 410.0, 420.0, 18.0]
-            }
-        ]
+        # 4. Honest failure — never fabricate extraction results
+        self.last_engine_used = "none"
+        self.last_confidence_score = 0.0
+        logger.warning("All OCR engines failed or unavailable — no table rows could be extracted.")
+        return []
 
 
 if __name__ == "__main__":

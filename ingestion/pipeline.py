@@ -42,7 +42,7 @@ class GeologicalIngestionPipeline:
             m = re.search(pat, filename, re.IGNORECASE)
             if m:
                 return m.group(1).upper()
-        return "BH-NK-094"
+        return None
 
     def _process_pdf(self, file_path: str) -> Tuple[List[Dict[str, Any]], str, float, str, int, List[Dict[str, Any]]]:
         """
@@ -119,38 +119,51 @@ class GeologicalIngestionPipeline:
 
         doc.close()
 
-        # Build bounding boxes for response
-        for r in raw_rows:
-            bb = r.get("bbox", [120.0, 340.0, 420.0, 18.0])
-            bboxes.append({
-                "x": float(bb[0]),
-                "y": float(bb[1]),
-                "width": float(bb[2]),
-                "height": float(bb[3]),
-                "pageNumber": r.get("page_number", 1)
-            })
+        if not borehole_id and raw_rows:
+            combined_text = (self.ocr_processor.last_full_text or "") + " " + " ".join([r.get("stratum", "") for r in raw_rows])
+            borehole_id = self.ocr_processor.last_borehole_id or self._detect_borehole_id(combined_text, Path(file_path).name)
+
+        # Build bounding boxes for response if rows were found
+        if raw_rows:
+            for r in raw_rows:
+                bb = r.get("bbox", [120.0, 340.0, 420.0, 18.0])
+                bboxes.append({
+                    "x": float(bb[0]),
+                    "y": float(bb[1]),
+                    "width": float(bb[2]),
+                    "height": float(bb[3]),
+                    "pageNumber": r.get("page_number", 1)
+                })
+        else:
+            confidence_score = 0.0
+            engine_used = self.ocr_processor.last_engine_used or "none"
 
         return raw_rows, borehole_id, confidence_score, engine_used, page_count, bboxes
 
-    def _process_image(self, file_path: str) -> Tuple[List[Dict[str, Any]], str, float, str, int, List[Dict[str, Any]]]:
+    def _process_image(self, file_path: str) -> Tuple[List[Dict[str, Any]], Optional[str], float, str, int, List[Dict[str, Any]]]:
         """Processes scanned plate image file (PNG/JPG/TIFF)."""
         img = Image.open(file_path)
         raw_rows = self.ocr_processor.extract_table_rows_with_bboxes(img)
         engine_used = self.ocr_processor.last_engine_used
         confidence_score = self.ocr_processor.last_confidence_score
-        borehole_id = self._detect_borehole_id(file_path, Path(file_path).name)
+        combined_text = (self.ocr_processor.last_full_text or "") + " " + " ".join([r.get("stratum", "") for r in raw_rows])
+        borehole_id = self.ocr_processor.last_borehole_id or self._detect_borehole_id(combined_text, Path(file_path).name)
 
         bboxes: List[Dict[str, Any]] = []
-        for r in raw_rows:
-            r["page_number"] = 1
-            bb = r.get("bbox", [120.0, 340.0, 420.0, 18.0])
-            bboxes.append({
-                "x": float(bb[0]),
-                "y": float(bb[1]),
-                "width": float(bb[2]),
-                "height": float(bb[3]),
-                "pageNumber": 1
-            })
+        if raw_rows:
+            for r in raw_rows:
+                r["page_number"] = 1
+                bb = r.get("bbox", [120.0, 340.0, 420.0, 18.0])
+                bboxes.append({
+                    "x": float(bb[0]),
+                    "y": float(bb[1]),
+                    "width": float(bb[2]),
+                    "height": float(bb[3]),
+                    "pageNumber": 1
+                })
+        else:
+            confidence_score = 0.0
+            engine_used = self.ocr_processor.last_engine_used or "none"
 
         return raw_rows, borehole_id, confidence_score, engine_used, 1, bboxes
 
@@ -170,17 +183,15 @@ class GeologicalIngestionPipeline:
             raw_rows, borehole_id, conf_score, engine_used, page_count, bboxes = self._process_image(file_path)
         else:
             # Fallback for csv/txt or unsupported
-            raw_rows = self.ocr_processor.extract_table_rows_with_bboxes(None)
+            raw_rows = []
             borehole_id = self._detect_borehole_id(path_obj.name, path_obj.name)
-            conf_score = 0.95
-            engine_used = "Format Tabular Parser"
+            conf_score = 0.0
+            engine_used = "none"
             page_count = 1
-            bboxes = [
-                {"x": 100.0, "y": 200.0, "width": 350.0, "height": 25.0, "pageNumber": 1}
-            ]
+            bboxes = []
 
         # 3. Domain Validation & Lithological Parsing
-        parsed_intervals = self.table_parser.parse_lithology_table(raw_rows, borehole_id)
+        parsed_intervals = self.table_parser.parse_lithology_table(raw_rows, borehole_id or "UNKNOWN-BH") if raw_rows else []
 
         # Convert intervals to dictionary representations
         interval_dicts = []
@@ -202,18 +213,25 @@ class GeologicalIngestionPipeline:
                 } if interval.bbox else None
             })
 
+        has_data = len(interval_dicts) > 0
+        extracted_boreholes = [borehole_id] if (borehole_id and has_data) else []
+
+        warnings = list(self.table_parser.last_warnings)
+        if not has_data:
+            warnings.append("No text or tabular lithological data detected in uploaded document.")
+
         return {
             "file_path": file_path,
             "filename": path_obj.name,
             "page_count": page_count,
-            "status": "EXTRACTED" if interval_dicts else "PENDING",
-            "confidence_score": round(conf_score, 3),
-            "ocr_engine_used": engine_used,
-            "tables_found": 1 if interval_dicts else 0,
-            "extracted_boreholes": [borehole_id],
+            "status": "EXTRACTED" if has_data else "NO_TEXT_DETECTED",
+            "confidence_score": round(conf_score, 3) if has_data else 0.0,
+            "ocr_engine_used": engine_used if has_data else "none",
+            "tables_found": 1 if has_data else 0,
+            "extracted_boreholes": extracted_boreholes,
             "extracted_intervals": interval_dicts,
-            "bounding_boxes": bboxes,
-            "warnings": self.table_parser.last_warnings
+            "bounding_boxes": bboxes if has_data else [],
+            "warnings": warnings
         }
 
 
