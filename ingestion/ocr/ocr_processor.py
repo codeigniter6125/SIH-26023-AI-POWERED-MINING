@@ -47,6 +47,44 @@ class GeologicalOCRProcessor:
         self.last_borehole_id: Optional[str] = None
         self.last_warnings: List[str] = []
 
+    @staticmethod
+    def _extract_borehole_id_from_text(text: str) -> Optional[str]:
+        """
+        Extracts and normalizes borehole designations from text.
+        Tolerant to OCR artifacts: whitespace around hyphens, underscores, dots,
+        and optical character substitutions (O/o -> 0, I/l -> 1).
+        """
+        if not text:
+            return None
+        patterns = [
+            # BH-NK-094, BH - NK - 094, BH_NK_094, BH - NK - O94
+            r'\b(BH)\s*[-_.: ]\s*([A-Z]{1,6})\s*[-_.: ]\s*([0-9OIl]{2,5}[A-Z]?)\b',
+            # CMPDI-DH-104, CMPDI - RI2 - 094, MECL - BK4 - 012
+            r'\b(CMPDI|MECL|GSI)\s*[-_.: ]\s*([A-Z0-9]{1,6})\s*[-_.: ]\s*([0-9OIl]{2,5}[A-Z]?)\b',
+            # DH-104, DH - 104
+            r'\b(DH)\s*[-_.: ]\s*([0-9OIl]{2,5}[A-Z]?)\b',
+            # General standard \bBH-[A-Z0-9-]+\b
+            r'\b(BH-[A-Z0-9-]+)\b',
+            r'\b(CMPDI-[A-Z0-9-]+)\b',
+            r'\b(MECL-[A-Z0-9-]+)\b',
+            r'\b(BH-[A-Z]{1,4}-\d{2,4}[A-Z]?|CMPDI-[A-Z]{1,4}-\d{2,4}|DH-\d{2,4}|MECL-[A-Z0-9-]+)\b'
+        ]
+        for pat in patterns:
+            m = re.search(pat, text, re.IGNORECASE)
+            if m:
+                groups = m.groups()
+                if len(groups) == 3:
+                    prefix, mid, num = groups
+                    num_clean = num.replace('O', '0').replace('o', '0').replace('l', '1').replace('I', '1')
+                    return f"{prefix.upper()}-{mid.upper()}-{num_clean.upper()}"
+                elif len(groups) == 2:
+                    prefix, num = groups
+                    num_clean = num.replace('O', '0').replace('o', '0').replace('l', '1').replace('I', '1')
+                    return f"{prefix.upper()}-{num_clean.upper()}"
+                elif len(groups) == 1:
+                    return groups[0].upper()
+        return None
+
     def preprocess_image(self, image: Image.Image) -> Image.Image:
         """
         Preprocesses a scanned geological document page:
@@ -170,8 +208,7 @@ class GeologicalOCRProcessor:
                                 current_vertices = []
 
             self.last_full_text = full_text
-            bh_match = re.search(r'\b(BH-[A-Z]{1,4}-\d{2,4}[A-Z]?|CMPDI-[A-Z]{1,4}-\d{2,4}|DH-\d{2,4}|MECL-[A-Z0-9-]+)\b', full_text, re.IGNORECASE)
-            self.last_borehole_id = bh_match.group(1).upper() if bh_match else None
+            self.last_borehole_id = self._extract_borehole_id_from_text(full_text)
 
             mean_conf = round(sum(confidences) / max(len(confidences), 1), 3) if confidences else 0.965
             return {
@@ -314,10 +351,15 @@ class GeologicalOCRProcessor:
                     "confidence": round(line_conf, 3)
                 })
 
+            full_text = " ".join([l["text"] for l in lines_with_bboxes]).strip()
+            self.last_full_text = full_text
+            self.last_borehole_id = self._extract_borehole_id_from_text(full_text)
+
             mean_conf = round(sum(confidences) / max(len(confidences), 1), 3) if confidences else 0.65
             return {
                 "success": True,
                 "engine": "Tesseract OCR",
+                "text": full_text,
                 "lines": lines_with_bboxes,
                 "confidence": mean_conf
             }
@@ -390,6 +432,8 @@ class GeologicalOCRProcessor:
         # 4. Honest failure — never fabricate extraction results
         self.last_engine_used = "none"
         self.last_confidence_score = 0.0
+        self.last_full_text = ""
+        self.last_borehole_id = None
         logger.warning("All OCR engines failed or unavailable — no text could be extracted.")
         return []
 
@@ -427,6 +471,8 @@ class GeologicalOCRProcessor:
         # 4. Honest failure — never fabricate extraction results
         self.last_engine_used = "none"
         self.last_confidence_score = 0.0
+        self.last_full_text = ""
+        self.last_borehole_id = None
         logger.warning("All OCR engines failed or unavailable — no table rows could be extracted.")
         return []
 

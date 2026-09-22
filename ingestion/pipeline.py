@@ -30,40 +30,13 @@ class GeologicalIngestionPipeline:
     def _detect_borehole_id(self, text: str, filename: str) -> Optional[str]:
         """
         Extracts and normalizes borehole designations from document text or filename.
-        Tolerant to common OCR artifacts: whitespace around hyphens, underscores, dots,
-        and optical character substitutions (O/o -> 0, I/l -> 1).
+        Delegates directly to GeologicalOCRProcessor._extract_borehole_id_from_text
+        to guarantee unified regex detection across all engines and pipelines.
         """
-        patterns = [
-            # BH-NK-094, BH - NK - 094, BH_NK_094, BH - NK - O94
-            r'\b(BH)\s*[-_.: ]\s*([A-Z]{1,6})\s*[-_.: ]\s*([0-9OIl]{2,5}[A-Z]?)\b',
-            # CMPDI-DH-104, CMPDI - RI2 - 094, MECL - BK4 - 012
-            r'\b(CMPDI|MECL|GSI)\s*[-_.: ]\s*([A-Z0-9]{1,6})\s*[-_.: ]\s*([0-9OIl]{2,5}[A-Z]?)\b',
-            # DH-104, DH - 104
-            r'\b(DH)\s*[-_.: ]\s*([0-9OIl]{2,5}[A-Z]?)\b',
-            # General standard \bBH-[A-Z0-9-]+\b
-            r'\b(BH-[A-Z0-9-]+)\b',
-            r'\b(CMPDI-[A-Z0-9-]+)\b',
-            r'\b(MECL-[A-Z0-9-]+)\b',
-        ]
-
-        for target in (text, filename):
-            if not target:
-                continue
-            for pat in patterns:
-                m = re.search(pat, target, re.IGNORECASE)
-                if m:
-                    groups = m.groups()
-                    if len(groups) == 3:
-                        prefix, mid, num = groups
-                        num_clean = num.replace('O', '0').replace('o', '0').replace('l', '1').replace('I', '1')
-                        return f"{prefix.upper()}-{mid.upper()}-{num_clean.upper()}"
-                    elif len(groups) == 2:
-                        prefix, num = groups
-                        num_clean = num.replace('O', '0').replace('o', '0').replace('l', '1').replace('I', '1')
-                        return f"{prefix.upper()}-{num_clean.upper()}"
-                    elif len(groups) == 1:
-                        return groups[0].upper()
-        return None
+        return (
+            self.ocr_processor._extract_borehole_id_from_text(text)
+            or self.ocr_processor._extract_borehole_id_from_text(filename)
+        )
 
     def _process_pdf(self, file_path: str) -> Tuple[List[Dict[str, Any]], str, float, str, int, List[Dict[str, Any]]]:
         """
